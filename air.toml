@@ -15,13 +15,13 @@ tmp_dir = "tmp"
 bin = "tmp/main"
 
 # File hoặc thư mục cần theo dõi thay đổi
-include_dir = ["internal", "pkg", "configs", "model"]
+include_dir = ["internal", "pkg", "configs", "model", ]
 
 # Bỏ qua những thư mục/file này
 exclude_dir = ["vendor", "tmp", "testdata", "node_modules", ".git"]
 
 # File extensions cần theo dõi
-include_ext = ["go", "yaml", "toml", "yml", "env"]
+include_ext = ["go", "yaml", "toml", "yml", ".env"]
 
 # File không cần reload
 exclude_file = ["air.toml"]
@@ -64,7 +64,7 @@ restart_on_error = true
   # Thư mục cần watch để reload
   include_dir = ["internal", "pkg", "configs", "model"]
   # Extensions cần watch
-  include_ext = ["go", "yaml", "toml", "yml", "env"]
+  include_ext = ["go", "yaml", "toml", "yml", ".env"]
   # Bỏ qua
   exclude_dir = ["vendor", "tmp", "testdata", "node_modules", ".git"]
   # Delay trước khi reload (ms)

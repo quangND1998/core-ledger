@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"core-ledger/pkg/logger"
+	_ "time/tzdata"
 )
 
 type Application struct {

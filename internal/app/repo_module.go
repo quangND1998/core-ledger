@@ -10,5 +10,6 @@ import (
 var RepoModule = fx.Module("repo",
 	fx.Provide(
 		repo.NewTransactionRepo,
+		repo.NewUserRepoIml,
 	),
 )

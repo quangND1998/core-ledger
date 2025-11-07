@@ -36,7 +36,6 @@ type TransactionRepo interface {
 	UpdateByCondition(ctx context.Context, where map[string]interface{}, updates map[string]interface{}) error
 	PaginateManual(fields *TransactionFilter) (*dto.PaginationResponse[*model.TransactionView], error)
 }
-
 type transactionRepo struct {
 	db *gorm.DB
 }
@@ -133,7 +132,7 @@ func NewTransactionRepo(db *gorm.DB) TransactionRepo {
 //	}
 func (s *transactionRepo) GetList(ctx context.Context) ([]model.Transaction, error) {
 	var products []model.Transaction
-	err := s.db.WithContext(ctx).Limit(10).Offset(0).Find(&products).Error
+	err := s.db.WithContext(ctx).Limit(1000).Offset(0).Find(&products).Error
 
 	return products, err
 }

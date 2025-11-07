@@ -22,7 +22,7 @@ type RouterParams struct {
 
 	Router             *gin.Engine
 	Lifecycle          fx.Lifecycle
-	TransactionHandler transactions.TransactionHandler
+	TransactionHandler *transactions.TransactionHandler
 	// Add more handlers here as needed:
 	// UserHandler    *handler.UserHandler
 	// OrderHandler   *handler.OrderHandler
@@ -38,7 +38,14 @@ func NewRouter() *gin.Engine {
 
 func SetupAllRoutes(params RouterParams) {
 	api := params.Router.Group("/api/v2")
-
+	params.Router.GET("/", func(c *gin.Context) {
+		c.JSON(200, dto.PreResponse{
+			Data: gin.H{
+				"status":  "success",
+				"message": "Core Ledger API is running",
+			}},
+		)
+	})
 	// Health route
 	params.Router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, dto.PreResponse{

@@ -65,14 +65,12 @@ func Instance() *gorm.DB {
 			"host=%s user=%s password=%s dbname=%s port=%s sslmode=%s TimeZone=Asia/Ho_Chi_Minh",
 			host, user, password, dbName, port, sslMode,
 		)
-		fmt.Println("🔍 Attempting to connect to database...", dsn)
 		// Log DSN without password for debugging
 		dsnLog := fmt.Sprintf(
 			"host=%s user=%s password=*** dbname=%s port=%s sslmode=%s TimeZone=Asia/Ho_Chi_Minh",
 			host, user, dbName, port, sslMode,
 		)
 		fmt.Printf("🔍 DSN connecting to: %s\n", dsnLog)
-		fmt.Printf("📋 Config check - Host: %s, User: %s, DB: %s, Port: %s, SSL: %s\n", host, user, dbName, port, sslMode)
 
 		// Try connection with retry logic
 		var db *gorm.DB

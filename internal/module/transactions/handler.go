@@ -8,16 +8,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type TransactionHandler interface {
-	GetList(c *gin.Context)
-}
-type transactionHandler struct {
+type TransactionHandler struct {
 	logger  logger.CustomLogger
-	service TransactionService
+	service *transactionService
 }
 
-func (h *transactionHandler) GetList(c *gin.Context) {
-	ts, err := h.service.listTransaction(c.Request.Context())
+func (h *TransactionHandler) GetList(c *gin.Context) {
+	ts, err := h.service.ListTransaction(c.Request.Context())
 	if err != nil {
 		h.logger.Error("failed to get transaction list: %v", err)
 		c.JSON(500, gin.H{
@@ -31,9 +28,9 @@ func (h *transactionHandler) GetList(c *gin.Context) {
 	})
 }
 
-func NewTransactionHandler(s TransactionService) TransactionHandler {
-	return &transactionHandler{
+func NewTransactionHandler(service *transactionService) *TransactionHandler {
+	return &TransactionHandler{
 		logger:  logger.NewSystemLog("TransactionHandler"),
-		service: s,
+		service: service,
 	}
 }

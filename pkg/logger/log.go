@@ -4,10 +4,44 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"strconv"
 
 	"github.com/sirupsen/logrus"
 )
+
+var sensitiveKeys = []string{
+	"password",
+	"key",
+	"token",
+	"secret",
+	"credential",
+	"private",
+	"api_key",
+	"access_token",
+}
+
+func maskSensitiveString(msg string) string {
+	for _, key := range sensitiveKeys {
+		patterns := []string{
+			key + `=\S+`,
+			key + `:\s*\S+`,
+			key + `\s+\S+`,
+		}
+		for _, pattern := range patterns {
+			re := regexp.MustCompile(`(?i)` + pattern)
+			msg = re.ReplaceAllString(msg, key+"=********")
+		}
+	}
+	return msg
+}
+
+func maskSensitiveValue(v any) any {
+	if s, ok := v.(string); ok {
+		return maskSensitiveString(s)
+	}
+	return v
+}
 
 const (
 	ColorReset  = "\033[0m"
@@ -22,16 +56,11 @@ func init() {
 	logrus.SetReportCaller(true)
 	logrus.SetFormatter(&customLog{})
 	logrus.SetOutput(os.Stdout)
-	//logrus.SetFormatter(&logrus.TextFormatter{
-	//	ForceColors:               true,
-	//	FullTimestamp:             true,
-	//	EnvironmentOverrideColors: true,
-	//})
 }
 
 type CustomLogger interface {
 	Debug(msg ...any)
-	Error(msa ...any)
+	Error(msg ...any)
 	Info(msg ...any)
 	Warn(msg ...any)
 }
@@ -42,9 +71,14 @@ type customLog struct {
 }
 
 func (l *customLog) Format(entry *logrus.Entry) ([]byte, error) {
+	// Mask toàn bộ dữ liệu nhạy cảm
+	entry.Message = maskSensitiveString(entry.Message)
+	for k, v := range entry.Data {
+		entry.Data[k] = maskSensitiveValue(v)
+	}
+
 	timestamp := fmt.Sprintf("%s[%s]%s", ColorCyan, entry.Time.Format("2006-01-02 15:04:05.000"), ColorReset)
 
-	// Color by log level
 	var levelColor string
 	switch entry.Level {
 	case logrus.InfoLevel:
@@ -58,24 +92,22 @@ func (l *customLog) Format(entry *logrus.Entry) ([]byte, error) {
 	}
 	level := fmt.Sprintf("%s[%s]%s", levelColor, entry.Level.String(), ColorReset)
 
-	// Provider field (optional)
 	provider := ""
 	if p, ok := entry.Data["provider"]; ok {
 		provider = fmt.Sprintf("%s[%s]%s", ColorBlue, p, ColorReset)
 		delete(entry.Data, "provider")
 	}
+
 	var fields string
 	for k, v := range entry.Data {
 		fields += fmt.Sprintf(" %s=%v", k, v)
 	}
 
-	// caller
 	caller := ""
 	if entry.Caller != nil {
 		caller += path.Base(entry.Caller.File) + ":" + strconv.Itoa(entry.Caller.Line)
 	}
 
-	// Final message
 	msg := fmt.Sprintf("%s%s[%v] %s %s%s\n", level, timestamp, caller, provider, entry.Message, fields)
 	return []byte(msg), nil
 }

@@ -23,8 +23,8 @@ type Transaction struct {
 	TransactionID           string                           `gorm:"column:transaction_id;not null" json:"transaction_id"` // TransactionCode
 	Provider                enum.TransactionProvider         `gorm:"column:provider;not null;default:BANK" json:"provider"`
 	ProviderType            string                           `gorm:"column:provider_type;not null;default:INDIVIDUAL" json:"provider_type"`
-	Fee                     *FeeField                        `gorm:"column:fee" json:"fee"`
-	Rate                    *RateField                       `gorm:"column:rate" json:"rate"`
+	Fee                     *datatypes.JSON                  `gorm:"column:fee" json:"fee"`
+	Rate                    *datatypes.JSON                  `gorm:"column:rate" json:"rate"`
 	SystemRate              *datatypes.JSON                  `gorm:"column:system_rate" json:"system_rate"`
 	CustomerInfo            *datatypes.JSON                  `gorm:"column:customer_info" json:"customer_info"`
 	Amount                  float64                          `gorm:"column:amount;not null" json:"amount"`
@@ -69,83 +69,6 @@ type Transaction struct {
 	SentWallet         *Wallet                `gorm:"foreignKey:SentWalletID;references:ID" json:"sent_wallet"`
 	SystemPayment      *SystemPayment         `gorm:"foreignKey:SystemPaymentID;references:ID" json:"system_payment"`
 	SubTransactions    []*Transaction         `gorm:"foreignKey:TransactionLinkedID;references:ID" json:"sub_transactions"`
-}
-
-func (t *Transaction) ChangedAmount() float64 {
-	switch t.TransactionType {
-	case enum.TransactionTypeInternal:
-		if t.Fee.Type == FeeTypePercent {
-			return -t.Amount * (1 + t.Fee.Amount)
-		}
-		return -(t.Amount + t.Fee.Amount)
-
-	case enum.TransactionTypeTopUp:
-		if t.Fee.Type == FeeTypePercent {
-			return t.Amount * (1 - t.Fee.Amount) * t.Rate.Amount
-		}
-		return (t.Amount - t.Fee.Amount) * t.Rate.Amount
-
-	case enum.TransactionTypeWithdrawal:
-		return -t.Amount
-	case enum.TransactionTypeAdjustment:
-		if t.SentWalletID == nil && t.ReceivedWalletID == nil {
-			return t.Amount
-		} else {
-			if t.SentWalletID != nil {
-				return -t.Amount
-			} else if t.ReceivedWalletID != nil {
-				return t.Amount
-			}
-			return t.Amount
-		}
-	default:
-		return 0
-	}
-}
-
-func (t *Transaction) FeeTx() float64 {
-	switch t.Fee.Type {
-	case "PERCENT":
-		return t.Fee.Amount * t.Amount
-	case "FIXED":
-		return t.Fee.Amount
-	default:
-		return t.Fee.Amount
-	}
-}
-
-func (t *Transaction) ReceivedAmount() float64 {
-	switch t.TransactionType {
-	case enum.TransactionTypeInternal:
-		if t.Fee.Type == FeeTypePercent {
-			return -t.Amount * (1 + t.Fee.Amount)
-		}
-		return -(t.Amount + t.Fee.Amount)
-
-	case enum.TransactionTypeTopUp:
-		if t.Fee.Type == FeeTypePercent {
-			return t.Amount * (1 - t.Fee.Amount) * t.Rate.Amount
-		}
-		return (t.Amount - t.Fee.Amount) * t.Rate.Amount
-
-	case enum.TransactionTypeWithdrawal:
-		if t.Fee.Type == FeeTypePercent {
-			return (t.Amount / t.Rate.Amount) * (1 - t.Fee.Amount)
-		}
-		return t.Amount/t.Rate.Amount - t.Fee.Amount
-	case enum.TransactionTypeAdjustment:
-		if t.SentWalletID == nil && t.ReceivedWalletID == nil {
-			return t.Amount
-		} else {
-			if t.SentWalletID != nil {
-				return -t.Amount
-			} else if t.ReceivedWalletID != nil {
-				return t.Amount
-			}
-			return t.Amount
-		}
-	}
-	return 0
 }
 
 type TransactionAutoProcessToApprove struct {
@@ -253,10 +176,6 @@ func (t *Transaction) AmountStr() string {
 
 func (t *Transaction) PaymentAmountStr() string {
 	return humanize.Comma(int64(t.PaymentAmount))
-}
-
-func (t *Transaction) ReceivedAmountStr() string {
-	return humanize.Comma(int64(t.ReceivedAmount()))
 }
 
 func (t *Transaction) TopUpType() string {

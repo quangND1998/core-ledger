@@ -4,7 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func registerAPIRoutes(r *gin.RouterGroup, h TransactionHandler, middleware ...gin.HandlerFunc) {
+func registerAPIRoutes(r *gin.RouterGroup, h *TransactionHandler, middleware ...gin.HandlerFunc) {
 	// Apply middleware to the group if provided
 	tx := r.Group("transactions", middleware...)
 	{
@@ -21,6 +21,6 @@ func registerAPIRoutes(r *gin.RouterGroup, h TransactionHandler, middleware ...g
 // Usage:
 //   - Without middleware: transactions.SetupRoutes(protected, handler)
 //   - With middleware: transactions.SetupRoutes(protected, handler, authMiddleware, loggingMiddleware)
-func SetupRoutes(rg *gin.RouterGroup, h TransactionHandler, middleware ...gin.HandlerFunc) {
+func SetupRoutes(rg *gin.RouterGroup, h *TransactionHandler, middleware ...gin.HandlerFunc) {
 	registerAPIRoutes(rg, h, middleware...)
 }

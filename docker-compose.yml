@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:latest
+    container_name: core_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: core_app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    ports:
+      - "${PORT:-8080}:8080"
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis:6379
+    command: ["./core-ledger"]
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: core_dashboard
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    ports:
+      - "${PORT_DASHBOARD:-8081}:8081"
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis:6379
+    command: ["./dashboard"]
+
+volumes:
+  redis_data:
