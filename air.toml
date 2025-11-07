@@ -1,0 +1,71 @@
+# ==========================================================
+# Air Configuration
+# Tự động build & restart khi code thay đổi
+# ==========================================================
+# Lệnh chạy khi reload (chạy trực tiếp với go run)
+cmd = "go run ./main.go"
+
+# Thư mục làm việc
+root = "."
+
+# Thư mục build tạm
+tmp_dir = "tmp"
+
+# File binary build tạm (Air tự build ra đây)
+bin = "tmp/main"
+
+# File hoặc thư mục cần theo dõi thay đổi
+include_dir = ["internal", "pkg", "configs", "model"]
+
+# Bỏ qua những thư mục/file này
+exclude_dir = ["vendor", "tmp", "testdata", "node_modules", ".git"]
+
+# File extensions cần theo dõi
+include_ext = ["go", "yaml", "toml", "yml", "env"]
+
+# File không cần reload
+exclude_file = ["air.toml"]
+
+# Delay để gom nhiều thay đổi (ms) - tránh reload quá nhiều lần
+delay = 1000
+
+# Log hiển thị
+log_color = true
+log_time = true
+
+# Nếu true thì Air build trước khi chạy lần đầu
+build_on_start = true
+
+# Khi build lỗi → tự động restart sau khi fix
+restart_on_error = true
+
+# Lệnh build thủ công (Air tự thực hiện)
+[build]
+  # Build command - main.go ở root
+  cmd = "go build -o ./tmp/main ./main.go"
+  bin = "tmp/main"
+  full_bin = "tmp/main"
+  # Delay trước khi build (ms)
+  delay = 1000
+  # Args để truyền vào binary khi chạy
+  args_bin = []
+  # Kill process cũ trước khi chạy mới
+  kill_delay = "0s"
+  # Environment variables khi build
+  env = []
+
+# Tùy chọn khi chạy binary
+[log]
+  time = true
+  main_only = false
+
+# Tùy chọn khi reload
+[reload]
+  # Thư mục cần watch để reload
+  include_dir = ["internal", "pkg", "configs", "model"]
+  # Extensions cần watch
+  include_ext = ["go", "yaml", "toml", "yml", "env"]
+  # Bỏ qua
+  exclude_dir = ["vendor", "tmp", "testdata", "node_modules", ".git"]
+  # Delay trước khi reload (ms)
+  delay = 1000

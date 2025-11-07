@@ -1,0 +1,13 @@
+external.env
+*.env
+.idea
+
+.env*
+
+*.key.json
+*.pem
+
+/docs
+/local
+.DS_Store
+tmp
