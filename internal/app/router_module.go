@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	config "core-ledger/configs"
+	"core-ledger/internal/module/middleware"
 	"core-ledger/internal/module/transactions"
 	"core-ledger/model/dto"
 	"net/http"
@@ -33,6 +34,9 @@ type RouterParams struct {
 func NewRouter() *gin.Engine {
 	// use default with logger and recovery middleware
 	router := gin.New()
+	router.Use(gin.Logger())
+	router.Use(gin.Recovery())
+	router.Use(middleware.RateLimitMiddleware())
 	return router
 }
 
@@ -59,6 +63,7 @@ func SetupAllRoutes(params RouterParams) {
 	// Protected routes (with middleware)
 	// Option 1: Apply middleware to entire protected group
 	protected := api.Group("")
+	protected.Use(middleware.RateLimitMiddleware())
 	// protected.Use(authMiddleware, loggingMiddleware) // Uncomment when you have middleware
 
 	// Option 2: Apply middleware per module (more flexible)
