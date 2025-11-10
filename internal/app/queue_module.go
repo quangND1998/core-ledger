@@ -5,6 +5,8 @@ import (
 	config "core-ledger/configs"
 	"core-ledger/pkg/queue"
 	"core-ledger/pkg/queue/handlers"
+	"fmt"
+	"reflect"
 
 	"github.com/hibiken/asynq"
 	"go.uber.org/fx"
@@ -38,6 +40,7 @@ var QueueModule = fx.Module("queue",
 	}) {
 		// đăng ký toàn bộ job/handler đã provide vào group
 		for _, r := range in.Registrations {
+			fmt.Println("Type:", r.Type, "Template:", r.Template, "Handler:", reflect.TypeOf(r.Handler))
 			w.RegisterJob(r.Type, r.Template, r.Handler)
 		}
 

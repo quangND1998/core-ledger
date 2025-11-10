@@ -7,6 +7,7 @@ import (
 	"core-ledger/pkg/repo"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/hibiken/asynq"
 )
@@ -38,17 +39,31 @@ func (h *DataProcessHandler) Handle(ctx context.Context, j queue.Job) error {
 	if !ok {
 		return fmt.Errorf("invalid job type, expect *DataProcessJob")
 	}
-	log.Printf("Handling DataProcessJob: Type=%s, Action=%s", job.ProcessType, job.Action)
+	
 	// Log retry info
+	currentAttempt := 1
 	if n, ok := asynq.GetRetryCount(ctx); ok {
-		log.Printf("Retry count (previous): %d, current attempt: %d", n, n+1)
+		currentAttempt = n + 1
 	}
+	maxRetry := 0
 	if max, ok := asynq.GetMaxRetry(ctx); ok {
-		log.Printf("Max retry configured: %d", max)
+		maxRetry = max
 	}
-	return fmt.Errorf("forced failure for testing")
+	
+	// Log backoff info nếu có
+	backoff := job.GetBackoff()
+	backoffInfo := "none (using default)"
+	if len(backoff) > 0 {
+		backoffInfo = fmt.Sprintf("%v seconds", backoff)
+	}
+	
+	log.Printf("📦 [Job] Handling DataProcessJob: Type=%s, Action=%s | Attempt=%d/%d | Backoff=%s", 
+		job.ProcessType, job.Action, currentAttempt, maxRetry+1, backoffInfo)
+	
+	time.Sleep(2 * time.Second) // giả lập xử lý mất thời gian
 	// Test lỗi: đặt Action="fail" để cố tình trả về lỗi (kích hoạt retry/Failed)
 	if job.Action == "fail" {
+		log.Printf("❌ [Job] Forcing failure for testing (will retry with backoff)")
 		return fmt.Errorf("forced failure for testing")
 	}
 	// var transactions []model.Transaction

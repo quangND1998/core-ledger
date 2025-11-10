@@ -3,9 +3,12 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"math"
 	"reflect"
+	"time"
 
 	"github.com/hibiken/asynq"
 )
@@ -21,14 +24,51 @@ type Worker struct {
 	handlers  map[string]JobHandler
 }
 
+// defaultRetryDelayFunc tạo exponential backoff cho retry
+// Retry delay: 1s, 2s, 4s, 8s, 16s, 30s (max)
+func defaultRetryDelayFunc(n int, e error, t *asynq.Task) time.Duration {
+	// Exponential backoff: 2^(n-1) seconds, max 30 seconds
+	delay := time.Duration(math.Pow(2, float64(n-1))) * time.Second
+	if delay > 30*time.Second {
+		delay = 30 * time.Second
+	}
+	return delay
+}
+
+// retryDelayFuncWithJobBackoff đọc backoff từ job payload nếu có, nếu không dùng default
+func retryDelayFuncWithJobBackoff(n int, e error, t *asynq.Task) time.Duration {
+	// Parse payload để lấy backoff
+	var payload JobPayload
+	if err := json.Unmarshal(t.Payload(), &payload); err == nil {
+		// Nếu job có backoff được định nghĩa
+		if len(payload.Backoff) > 0 {
+			// n là số lần retry (0-based: 0, 1, 2, ...)
+			// Retry #0 → array[0], Retry #1 → array[1], Retry #2 → array[2], ...
+			index := n
+			if index < 0 {
+				index = 0
+			}
+			if index >= len(payload.Backoff) {
+				// Nếu vượt quá mảng, dùng giá trị cuối cùng
+				index = len(payload.Backoff) - 1
+			}
+			delay := time.Duration(payload.Backoff[index]) * time.Second
+			return delay
+		}
+	}
+	// Fallback về default exponential backoff
+	return defaultRetryDelayFunc(n, e, t)
+}
+
 // NewWorker tạo worker instance mới với config
 func NewWorker(redisAddr string, concurrency int, queues map[string]int) *Worker {
 	var w *Worker
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisAddr},
 		asynq.Config{
-			Concurrency: concurrency,
-			Queues:      queues,
+			Concurrency:   concurrency,
+			Queues:        queues,
+			RetryDelayFunc: retryDelayFuncWithJobBackoff,
 			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, t *asynq.Task, err error) {
 				if w == nil {
 					return
@@ -82,8 +122,9 @@ func NewWorkerWithRedis(opt asynq.RedisClientOpt, concurrency int, queues map[st
 	srv := asynq.NewServer(
 		opt,
 		asynq.Config{
-			Concurrency: concurrency,
-			Queues:      queues,
+			Concurrency:   concurrency,
+			Queues:        queues,
+			RetryDelayFunc: retryDelayFuncWithJobBackoff,
 			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, t *asynq.Task, err error) {
 				if w == nil {
 					return
@@ -170,21 +211,41 @@ func (w *Worker) createHandler(jobType string) asynq.HandlerFunc {
 			return fmt.Errorf("failed to populate job data: %w", err)
 		}
 
+		var handlerErr error
+
 		// Nếu có handler riêng, gọi handler đó
 		if h, ok := w.handlers[jobType]; ok && h != nil {
 			log.Printf("Processing job with external handler: %s", jobType)
-			return h.Handle(ctx, job)
-		}
-
-		// Fallback: nếu job struct vẫn có method Handle (legacy), gọi nó
-		if legacyHandler, ok := any(job).(interface {
+			handlerErr = h.Handle(ctx, job)
+		} else if legacyHandler, ok := any(job).(interface {
 			Handle(context.Context) error
 		}); ok {
+			// Fallback: nếu job struct vẫn có method Handle (legacy), gọi nó
 			log.Printf("Processing job with legacy job.Handle: %s", jobType)
-			return legacyHandler.Handle(ctx)
+			handlerErr = legacyHandler.Handle(ctx)
+		} else {
+			return fmt.Errorf("no handler found for job type: %s", jobType)
 		}
 
-		return fmt.Errorf("no handler found for job type: %s", jobType)
+		// Kiểm tra timeout: nếu context bị timeout hoặc error là timeout
+		if handlerErr != nil {
+			// Kiểm tra xem context có bị timeout không
+			if ctx.Err() == context.DeadlineExceeded {
+				return fmt.Errorf("job timeout: %w", handlerErr)
+			}
+			// Kiểm tra xem error có phải là timeout error không
+			if errors.Is(handlerErr, context.DeadlineExceeded) {
+				return fmt.Errorf("job timeout: %w", handlerErr)
+			}
+			return handlerErr
+		}
+
+		// Kiểm tra lại context sau khi handler hoàn thành (phòng trường hợp timeout xảy ra nhưng handler không trả về error)
+		if ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("job timeout: context deadline exceeded")
+		}
+
+		return nil
 	}
 }
 

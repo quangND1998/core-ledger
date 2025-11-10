@@ -15,9 +15,11 @@ type Job interface {
 	GetQueue() string
 	GetDelay() time.Duration
 	GetRetry() int
+	GetBackoff() []int // Trả về mảng các giá trị backoff (giây), ví dụ: [1, 2, 4, 8]
 	SetQueue(string)
 	SetDelay(time.Duration)
 	SetRetry(int)
+	SetBackoff([]int)
 }
 
 // JobHandler interface tách riêng phần xử lý
@@ -34,9 +36,10 @@ type Registration struct {
 
 // BaseJob struct để embed vào các job cụ thể
 type BaseJob struct {
-	Queue string        `json:"queue,omitempty"`
-	Delay time.Duration `json:"delay,omitempty"`
-	Retry int           `json:"retry,omitempty"`
+	Queue   string        `json:"queue,omitempty"`
+	Delay   time.Duration `json:"delay,omitempty"`
+	Retry   int           `json:"retry,omitempty"`
+	Backoff []int         `json:"backoff,omitempty"` // Mảng các giá trị backoff (giây), ví dụ: [1, 2, 4, 8]
 }
 
 // GetQueue trả về tên queue, mặc định là "default"
@@ -75,17 +78,29 @@ func (b *BaseJob) SetRetry(retry int) {
 	b.Retry = retry
 }
 
+// GetBackoff trả về mảng các giá trị backoff (giây)
+func (b *BaseJob) GetBackoff() []int {
+	return b.Backoff
+}
+
+// SetBackoff set mảng các giá trị backoff (giây)
+func (b *BaseJob) SetBackoff(backoff []int) {
+	b.Backoff = backoff
+}
+
 // JobPayload wraps job data for serialization
 type JobPayload struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
+	Type    string      `json:"type"`
+	Data    interface{} `json:"data"`
+	Backoff []int       `json:"backoff,omitempty"` // Lưu backoff để dùng trong RetryDelayFunc
 }
 
 // CreateTask tạo asynq.Task từ Job
 func CreateTask(job Job) (*asynq.Task, error) {
 	payload := JobPayload{
-		Type: job.GetType(),
-		Data: job.GetPayload(),
+		Type:    job.GetType(),
+		Data:    job.GetPayload(),
+		Backoff: job.GetBackoff(), // Lưu backoff vào payload
 	}
 
 	data, err := json.Marshal(payload)

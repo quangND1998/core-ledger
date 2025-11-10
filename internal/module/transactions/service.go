@@ -45,7 +45,7 @@ func (s *transactionService) ListTransaction(ctx context.Context) ([]model.Trans
 		"max_records":     1000,
 	})
 	dataJob.SetQueue("critical")
-
+	dataJob.SetBackoff([]int{10, 20, 30})
 	if err := s.dispatcher.Dispatch(dataJob, queue.Timeout(1*time.Second)); err != nil {
 		log.Printf("❌ Failed to dispatch data job: %v", err)
 		return nil, err
