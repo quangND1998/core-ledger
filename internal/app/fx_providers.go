@@ -8,5 +8,6 @@ var FXProviders = fx.Options(
 	ServiceModule,
 	HandlerModule,
 	RouterModule,
+	JobModule,
 	fx.Provide(NewApplication),
 )

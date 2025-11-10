@@ -4,7 +4,10 @@ import (
 	"context"
 	model "core-ledger/model/wealify"
 	"core-ledger/pkg/logger"
+	"core-ledger/pkg/queue"
+	"core-ledger/pkg/queue/jobs"
 	"core-ledger/pkg/repo"
+	"log"
 )
 
 type TransactionService interface {
@@ -23,7 +26,28 @@ func (s *transactionService) ListTransaction(ctx context.Context) ([]model.Trans
 	if err != nil {
 		return nil, err
 	}
+	dataJob := jobs.NewDataProcessJob("user_analytics", "export", map[string]interface{}{
+		"user_id": "test_user_123",
+		"format":  "json",
+		"filters": map[string]interface{}{
+			"date_from": "2024-01-01",
+			"date_to":   "2024-12-31",
+			"status":    "active",
+		},
+	})
 
+	dataJob.SetOptions(map[string]interface{}{
+		"include_headers": true,
+		"date_format":     "ISO",
+		"compression":     "none",
+		"max_records":     1000,
+	})
+	dataJob.SetQueue("default")
+
+	if err := queue.Dispatch(dataJob); err != nil {
+		log.Printf("❌ Failed to dispatch data job: %v", err)
+		return nil, err
+	}
 	// TODO: Implement the logic to fetch transactions from the database based on the request parameters
 	// and populate the transactions slice accordingly.
 	return transactions, nil
