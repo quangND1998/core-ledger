@@ -23,20 +23,108 @@ type Worker struct {
 
 // NewWorker tạo worker instance mới với config
 func NewWorker(redisAddr string, concurrency int, queues map[string]int) *Worker {
+	var w *Worker
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisAddr},
 		asynq.Config{
 			Concurrency: concurrency,
 			Queues:      queues,
+			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, t *asynq.Task, err error) {
+				if w == nil {
+					return
+				}
+				jobType := t.Type()
+				handler, ok := w.handlers[jobType]
+				if !ok {
+					return
+				}
+				// chỉ gọi Failed khi hết retry
+				retryCount, okRetry := asynq.GetRetryCount(ctx)
+				maxRetry, okMax := asynq.GetMaxRetry(ctx)
+				// Nếu không lấy được metadata retry, bỏ qua để tránh gọi Failed sai thời điểm
+				if !(okRetry && okMax) {
+					return
+				}
+				if maxRetry > 0 && (retryCount+1) < maxRetry {
+					return
+				}
+				// dựng lại job
+				factory, exists := w.factories[jobType]
+				if !exists {
+					return
+				}
+				job := factory()
+				if job == nil {
+					return
+				}
+				if errPopulate := w.populateJobData(job, t.Payload()); errPopulate != nil {
+					log.Printf("failed to populate job for Failed hook: %v", errPopulate)
+				}
+				if fh, ok := handler.(failableHandler); ok {
+					fh.Failed(ctx, job, err)
+				}
+			}),
 		},
 	)
 
-	return &Worker{
+	w = &Worker{
 		server:    srv,
 		mux:       asynq.NewServeMux(),
 		factories: make(map[string]JobFactory),
 		handlers:  make(map[string]JobHandler),
 	}
+	return w
+}
+
+// NewWorkerWithRedis sử dụng đầy đủ RedisClientOpt (addr/password/db/..)
+func NewWorkerWithRedis(opt asynq.RedisClientOpt, concurrency int, queues map[string]int) *Worker {
+	var w *Worker
+	srv := asynq.NewServer(
+		opt,
+		asynq.Config{
+			Concurrency: concurrency,
+			Queues:      queues,
+			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, t *asynq.Task, err error) {
+				if w == nil {
+					return
+				}
+				jobType := t.Type()
+				handler, ok := w.handlers[jobType]
+				if !ok {
+					return
+				}
+				retryCount, okRetry := asynq.GetRetryCount(ctx)
+				maxRetry, okMax := asynq.GetMaxRetry(ctx)
+				if !(okRetry && okMax) {
+					return
+				}
+				if maxRetry > 0 && (retryCount+1) < maxRetry {
+					return
+				}
+				factory, exists := w.factories[jobType]
+				if !exists {
+					return
+				}
+				job := factory()
+				if job == nil {
+					return
+				}
+				if errPopulate := w.populateJobData(job, t.Payload()); errPopulate != nil {
+					log.Printf("failed to populate job for Failed hook: %v", errPopulate)
+				}
+				if fh, ok := handler.(failableHandler); ok {
+					fh.Failed(ctx, job, err)
+				}
+			}),
+		},
+	)
+	w = &Worker{
+		server:    srv,
+		mux:       asynq.NewServeMux(),
+		factories: make(map[string]JobFactory),
+		handlers:  make(map[string]JobHandler),
+	}
+	return w
 }
 
 // RegisterJob đăng ký job factory và handler
@@ -115,6 +203,12 @@ func (w *Worker) populateJobData(job Job, payload []byte) error {
 
 	// Unmarshal vào job instance
 	return json.Unmarshal(data, job)
+}
+
+// failableHandler mô tả handler có hook Failed
+type failableHandler interface {
+	JobHandler
+	Failed(ctx context.Context, job Job, err error)
 }
 
 // Start chạy worker

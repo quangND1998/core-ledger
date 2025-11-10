@@ -8,6 +8,7 @@ import (
 	"core-ledger/pkg/queue/jobs"
 	"core-ledger/pkg/repo"
 	"log"
+	"time"
 )
 
 type TransactionService interface {
@@ -15,8 +16,9 @@ type TransactionService interface {
 }
 type transactionService struct {
 	repo.TransactionRepo
-	userRepo repo.UserRepo
-	logger   logger.CustomLogger
+	userRepo   repo.UserRepo
+	logger     logger.CustomLogger
+	dispatcher queue.Dispatcher
 }
 
 func (s *transactionService) ListTransaction(ctx context.Context) ([]model.Transaction, error) {
@@ -42,9 +44,9 @@ func (s *transactionService) ListTransaction(ctx context.Context) ([]model.Trans
 		"compression":     "none",
 		"max_records":     1000,
 	})
-	dataJob.SetQueue("default")
+	dataJob.SetQueue("critical")
 
-	if err := queue.Dispatch(dataJob); err != nil {
+	if err := s.dispatcher.Dispatch(dataJob, queue.Timeout(1*time.Second)); err != nil {
 		log.Printf("❌ Failed to dispatch data job: %v", err)
 		return nil, err
 	}
@@ -65,10 +67,11 @@ func (s *transactionService) List(ctx context.Context) ([]model.Transaction, err
 	// and populate the transactions slice accordingly.
 	return transactions, nil
 }
-func NewTransactionService(transactionRepo repo.TransactionRepo, userRepo repo.UserRepo) *transactionService {
+func NewTransactionService(transactionRepo repo.TransactionRepo, userRepo repo.UserRepo, dispatcher queue.Dispatcher) *transactionService {
 	return &transactionService{
 		TransactionRepo: transactionRepo,
 		userRepo:        userRepo,
 		logger:          logger.NewSystemLog("TransactionService"),
+		dispatcher:      dispatcher,
 	}
 }

@@ -96,7 +96,7 @@ func StartHTTPServer(params RouterParams) {
 
 	port := config.GetConfig().Common.Port
 	if port == "" {
-		port = "8080"
+		port = "8000"
 	}
 
 	srv := &http.Server{

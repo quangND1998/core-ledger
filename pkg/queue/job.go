@@ -25,6 +25,13 @@ type JobHandler interface {
 	Handle(ctx context.Context, job Job) error
 }
 
+// Registration mô tả một job và handler dùng để đăng ký vào worker
+type Registration struct {
+	Type     string
+	Template Job
+	Handler  JobHandler
+}
+
 // BaseJob struct để embed vào các job cụ thể
 type BaseJob struct {
 	Queue string        `json:"queue,omitempty"`

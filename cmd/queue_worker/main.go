@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	config "core-ledger/configs"
-	"core-ledger/pkg/queue"
-	"core-ledger/pkg/queue/handlers"
-	"core-ledger/pkg/queue/jobs"
+	"core-ledger/internal/app"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
+
+	"go.uber.org/fx"
 )
 
 func main() {
@@ -20,40 +22,33 @@ func main() {
 		log.Fatal("Failed to set REDIS_PASSWORD")
 	}
 
-	// Initialize Redis
+	// Khởi tạo Redis (nếu các phần khác cần)
 	config.InitRedis()
 
-	// Initialize Queue với error handling
-	if err := queue.InitQueue(); err != nil {
-		log.Fatalf("Failed to initialize queue: %v", err)
+	// Dùng Fx để DI worker/handlers và auto start theo lifecycle
+	fxApp := fx.New(
+		app.CoreModule,
+		app.RepoModule, // nếu cần tạo factory job cho nơi khác dùng
+		app.QueueModule, // module worker + handler + lifecycle
+	)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	if err := fxApp.Start(ctx); err != nil {
+		log.Fatalf("failed to start fx app: %v", err)
 	}
 
-	// Lấy config để khởi tạo worker
-	queueConfig := config.GetQueueConfig()
+	log.Println("Queue worker (Fx) started successfully")
 
-	// Initialize Worker với pattern mới
-	queue.InitWorker(queueConfig.RedisAddr, queueConfig.Concurrency, queueConfig.Queues)
+	// Chờ tín hiệu hệ thống
+	<-ctx.Done()
 
-	// Đăng ký các job handlers
-
-	queue.RegisterJobHandler("data:process", &jobs.DataProcessJob{}, handlers.NewDataProcessHandler())
-
-	// Start worker
-	go func() {
-		if err := queue.StartWorker(); err != nil {
-			log.Fatalf("Failed to start worker: %v", err)
-		}
-	}()
-
-	log.Println("Queue worker started successfully")
-
-	// Wait for interrupt signal to gracefully shutdown
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-
-	log.Println("Shutting down queue worker...")
-	queue.StopWorker()
-	queue.CloseQueue()
-	log.Println("Queue worker stopped")
+	log.Println("Shutting down queue worker (Fx)...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := fxApp.Stop(shutdownCtx); err != nil {
+		log.Printf("error stopping fx app: %v", err)
+	}
+	log.Println("Queue worker stopped.")
 }
