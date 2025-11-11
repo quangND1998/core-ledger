@@ -5,6 +5,7 @@ import (
 	// "core-ledger/internal/module/accounts/accounthandler"
 	// "core-ledger/internal/module/transactions"
 	// "core-ledger/internal/module/wallets"
+	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/transactions"
 
 	"go.uber.org/fx"
@@ -13,6 +14,7 @@ import (
 var HandlerModule = fx.Module("handler",
 	fx.Provide(
 		transactions.NewTransactionHandler,
+		excel.NewExcelHandler,
 	// accounthandler.NewAccountHandler,
 	// authhandler.NewHandler,
 	// wallets.NewWalletHandler,

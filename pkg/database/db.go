@@ -104,8 +104,8 @@ func Instance() *gorm.DB {
 		// Configure connection pool
 		sqlDB, err := db.DB()
 		if err == nil {
-			sqlDB.SetMaxIdleConns(10)
-			sqlDB.SetMaxOpenConns(100)
+			sqlDB.SetMaxIdleConns(config.Reader().GetInt("PG_MAXIDLECONNS"))
+			sqlDB.SetMaxOpenConns(config.Reader().GetInt("PG_MAXXOPENCONNS"))
 			sqlDB.SetConnMaxLifetime(time.Hour)
 		}
 

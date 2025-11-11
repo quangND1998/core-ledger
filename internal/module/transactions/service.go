@@ -28,7 +28,7 @@ func (s *transactionService) ListTransaction(ctx context.Context) ([]model.Trans
 	if err != nil {
 		return nil, err
 	}
-	dataJob := jobs.NewDataProcessJob("user_analytics", "export", map[string]interface{}{
+	dataJob := jobs.NewMyJob("user_analytics", "export", map[string]interface{}{
 		"user_id": "test_user_123",
 		"format":  "json",
 		"filters": map[string]interface{}{
@@ -45,7 +45,6 @@ func (s *transactionService) ListTransaction(ctx context.Context) ([]model.Trans
 		"max_records":     1000,
 	})
 	dataJob.SetQueue("critical")
-	dataJob.SetBackoff([]int{10, 20, 30})
 	if err := s.dispatcher.Dispatch(dataJob, queue.Timeout(1*time.Second)); err != nil {
 		log.Printf("❌ Failed to dispatch data job: %v", err)
 		return nil, err

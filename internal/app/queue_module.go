@@ -27,9 +27,12 @@ var QueueModule = fx.Module("queue",
 		},
 		// Cấp phát handler có DI repo bên trong
 		handlers.NewDataProcessHandler,
+		handlers.NewMyJobHandler,
+		fx.Annotate(handlers.NewDataProcessRegistration,
+			fx.ResultTags(`group:"queue-registrations"`),
+		),
 		// Cấp phát registration theo group để dễ mở rộng nhiều job/handler
-		fx.Annotate(
-			handlers.NewDataProcessRegistration,
+		fx.Annotate(handlers.NewMyJobHandlerRegistration,
 			fx.ResultTags(`group:"queue-registrations"`),
 		),
 	),

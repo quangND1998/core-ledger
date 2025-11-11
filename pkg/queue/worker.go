@@ -66,8 +66,8 @@ func NewWorker(redisAddr string, concurrency int, queues map[string]int) *Worker
 	srv := asynq.NewServer(
 		asynq.RedisClientOpt{Addr: redisAddr},
 		asynq.Config{
-			Concurrency:   concurrency,
-			Queues:        queues,
+			Concurrency:    concurrency,
+			Queues:         queues,
 			RetryDelayFunc: retryDelayFuncWithJobBackoff,
 			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, t *asynq.Task, err error) {
 				if w == nil {
@@ -122,8 +122,8 @@ func NewWorkerWithRedis(opt asynq.RedisClientOpt, concurrency int, queues map[st
 	srv := asynq.NewServer(
 		opt,
 		asynq.Config{
-			Concurrency:   concurrency,
-			Queues:        queues,
+			Concurrency:    concurrency,
+			Queues:         queues,
 			RetryDelayFunc: retryDelayFuncWithJobBackoff,
 			ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, t *asynq.Task, err error) {
 				if w == nil {

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/transactions"
 
 	"go.uber.org/fx"
@@ -10,10 +11,6 @@ import (
 var ServiceModule = fx.Module("service",
 	fx.Provide(
 		transactions.NewTransactionService,
+		excel.NewExcelService,
 	),
 )
-
-
-
-
-

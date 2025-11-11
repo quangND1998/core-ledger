@@ -9,5 +9,6 @@ var FXProviders = fx.Options(
 	HandlerModule,
 	RouterModule,
 	QueueClientModule,
+	// QueueModule,
 	fx.Provide(NewApplication),
 )

@@ -3,7 +3,7 @@ package app
 import (
 	"context"
 	config "core-ledger/configs"
-	"core-ledger/internal/module/middleware"
+	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/transactions"
 	"core-ledger/model/dto"
 	"net/http"
@@ -24,6 +24,7 @@ type RouterParams struct {
 	Router             *gin.Engine
 	Lifecycle          fx.Lifecycle
 	TransactionHandler *transactions.TransactionHandler
+	ExcelHandler       *excel.ExcelHandler
 	// Add more handlers here as needed:
 	// UserHandler    *handler.UserHandler
 	// OrderHandler   *handler.OrderHandler
@@ -34,9 +35,9 @@ type RouterParams struct {
 func NewRouter() *gin.Engine {
 	// use default with logger and recovery middleware
 	router := gin.New()
-	router.Use(gin.Logger())
+	// router.Use(gin.Logger())
 	router.Use(gin.Recovery())
-	router.Use(middleware.RateLimitMiddleware())
+	// router.Use(middleware.RateLimitMiddleware())
 	return router
 }
 
@@ -55,7 +56,7 @@ func SetupAllRoutes(params RouterParams) {
 		c.JSON(200, dto.PreResponse{
 			Data: gin.H{
 				"status":  "success",
-				"message": "Wealify API is running",
+				"message": "Core ledger API is running",
 			}},
 		)
 	})
@@ -63,7 +64,7 @@ func SetupAllRoutes(params RouterParams) {
 	// Protected routes (with middleware)
 	// Option 1: Apply middleware to entire protected group
 	protected := api.Group("")
-	protected.Use(middleware.RateLimitMiddleware())
+	// protected.Use(middleware.RateLimitMiddleware())
 	// protected.Use(authMiddleware, loggingMiddleware) // Uncomment when you have middleware
 
 	// Option 2: Apply middleware per module (more flexible)
@@ -72,6 +73,7 @@ func SetupAllRoutes(params RouterParams) {
 	// Gọi SetupRoutes() từng module
 	// Without middleware:
 	transactions.SetupRoutes(protected, params.TransactionHandler)
+	excel.SetupRoutes(protected, params.ExcelHandler)
 	// With middleware (example):
 	// transactions.SetupRoutes(protected, params.TransactionHandler, transactions.AuthMiddleware(), transactions.LoggingMiddleware())
 
