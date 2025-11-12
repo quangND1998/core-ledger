@@ -15,12 +15,15 @@ import (
 // DataProcessHandler xử lý DataProcessJob
 type DataProcessHandler struct {
 	repo.TransactionRepo
+	dispatcher queue.Dispatcher
+
 	// thêm dependency nếu cần (ví dụ: services, repos)
 }
 
-func NewDataProcessHandler(transactionRepo repo.TransactionRepo) *DataProcessHandler {
+func NewDataProcessHandler(transactionRepo repo.TransactionRepo, dispatcher queue.Dispatcher) *DataProcessHandler {
 	return &DataProcessHandler{
 		TransactionRepo: transactionRepo,
+		dispatcher:      dispatcher,
 	}
 }
 
@@ -39,7 +42,7 @@ func (h *DataProcessHandler) Handle(ctx context.Context, j queue.Job) error {
 	if !ok {
 		return fmt.Errorf("invalid job type, expect *DataProcessJob")
 	}
-	
+
 	// Log retry info
 	currentAttempt := 1
 	if n, ok := asynq.GetRetryCount(ctx); ok {
@@ -49,22 +52,43 @@ func (h *DataProcessHandler) Handle(ctx context.Context, j queue.Job) error {
 	if max, ok := asynq.GetMaxRetry(ctx); ok {
 		maxRetry = max
 	}
-	
+
 	// Log backoff info nếu có
 	backoff := job.GetBackoff()
 	backoffInfo := "none (using default)"
 	if len(backoff) > 0 {
 		backoffInfo = fmt.Sprintf("%v seconds", backoff)
 	}
-	
-	log.Printf("📦 [Job] Handling DataProcessJob: Type=%s, Action=%s | Attempt=%d/%d | Backoff=%s", 
+
+	log.Printf("📦 [Job] Handling DataProcessJob: Type=%s, Action=%s | Attempt=%d/%d | Backoff=%s",
 		job.ProcessType, job.Action, currentAttempt, maxRetry+1, backoffInfo)
-	
-	time.Sleep(2 * time.Second) // giả lập xử lý mất thời gian
+
 	// Test lỗi: đặt Action="fail" để cố tình trả về lỗi (kích hoạt retry/Failed)
 	if job.Action == "fail" {
 		log.Printf("❌ [Job] Forcing failure for testing (will retry with backoff)")
 		return fmt.Errorf("forced failure for testing")
+	}
+
+	dataJob := jobs.NewMyJob("user_analytics", "export", map[string]interface{}{
+		"user_id": "test_user_123",
+		"format":  "json",
+		"filters": map[string]interface{}{
+			"date_from": "2024-01-01",
+			"date_to":   "2024-12-31",
+			"status":    "active",
+		},
+	})
+
+	dataJob.SetOptions(map[string]interface{}{
+		"include_headers": true,
+		"date_format":     "ISO",
+		"compression":     "none",
+		"max_records":     1000,
+	})
+	dataJob.SetQueue("critical")
+	if err := h.dispatcher.Dispatch(dataJob, queue.Timeout(1*time.Second)); err != nil {
+		log.Printf("❌ Failed to dispatch data job: %v", err)
+		return err
 	}
 	// var transactions []model.Transaction
 	// transactions, err := h.TransactionRepo.GetList(ctx)
@@ -73,7 +97,7 @@ func (h *DataProcessHandler) Handle(ctx context.Context, j queue.Job) error {
 	// 	return err
 	// }
 	// TODO: business logic xử lý theo job.ProcessType / job.Action / job.Data
-	_ = job
+
 	return nil // trả về error để asynq retry nếu cần
 }
 

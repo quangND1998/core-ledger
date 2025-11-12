@@ -4,6 +4,7 @@ import (
 	"core-ledger/model/dto"
 	"core-ledger/pkg/ginhp"
 	"core-ledger/pkg/logger"
+	"core-ledger/pkg/queue"
 	"core-ledger/pkg/repo"
 	"net/http"
 
@@ -14,13 +15,15 @@ type CoaAccountHandler struct {
 	logger        logger.CustomLogger
 	service       *CoaAccountService
 	coAccountRepo repo.CoAccountRepo
+	dispatcher    queue.Dispatcher
 }
 
-func NewCoaAccountHandler(service *CoaAccountService, coAccountRepo repo.CoAccountRepo) *CoaAccountHandler {
+func NewCoaAccountHandler(service *CoaAccountService, coAccountRepo repo.CoAccountRepo, dispatcher queue.Dispatcher) *CoaAccountHandler {
 	return &CoaAccountHandler{
 		logger:        logger.NewSystemLog("CoaAccountHandler"),
 		service:       service,
 		coAccountRepo: coAccountRepo,
+		dispatcher:    dispatcher,
 	}
 }
 

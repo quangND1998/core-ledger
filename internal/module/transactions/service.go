@@ -11,7 +11,6 @@ import (
 	"time"
 )
 
-
 type transactionService struct {
 	repo.TransactionRepo
 	userRepo   repo.UserRepo
@@ -26,24 +25,13 @@ func (s *transactionService) ListTransaction(ctx context.Context) ([]model.Trans
 	if err != nil {
 		return nil, err
 	}
-	dataJob := jobs.NewMyJob("user_analytics", "export", map[string]interface{}{
-		"user_id": "test_user_123",
-		"format":  "json",
-		"filters": map[string]interface{}{
-			"date_from": "2024-01-01",
-			"date_to":   "2024-12-31",
-			"status":    "active",
-		},
+	job := jobs.NewDataProcessJob("test", "fail", map[string]interface{}{
+		"test": "backoff",
 	})
+	job.SetBackoff([]int{2, 5, 10}) // Custom backoff: 2s, 5s, 10s
+	job.SetRetry(3)                 // Cho phép retry 3 lần
 
-	dataJob.SetOptions(map[string]interface{}{
-		"include_headers": true,
-		"date_format":     "ISO",
-		"compression":     "none",
-		"max_records":     1000,
-	})
-	dataJob.SetQueue("critical")
-	if err := s.dispatcher.Dispatch(dataJob, queue.Timeout(1*time.Second)); err != nil {
+	if err := s.dispatcher.Dispatch(job, queue.Timeout(1*time.Second)); err != nil {
 		log.Printf("❌ Failed to dispatch data job: %v", err)
 		return nil, err
 	}

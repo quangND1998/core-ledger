@@ -17,6 +17,15 @@ var QueueModule = fx.Module("queue",
 	fx.Provide(
 		// Cấp phát QueueConfig từ env (có validate)
 		config.GetQueueConfigWithValidation,
+		// asynq.Client để worker/handler có thể enqueue follow-up jobs
+		func(cfg *config.QueueConfig) (*asynq.Client, error) {
+			client := asynq.NewClient(asynq.RedisClientOpt{
+				Addr:     cfg.RedisAddr,
+				Password: cfg.RedisPassword,
+				DB:       cfg.RedisDB,
+			})
+			return client, nil
+		},
 		// Tạo worker theo config
 		func(cfg *config.QueueConfig) *queue.Worker {
 			return queue.NewWorkerWithRedis(asynq.RedisClientOpt{
@@ -43,7 +52,7 @@ var QueueModule = fx.Module("queue",
 		),
 	),
 	// Đăng ký routes của worker và khởi chạy theo lifecycle
-	fx.Invoke(func(lc fx.Lifecycle, w *queue.Worker, in struct {
+	fx.Invoke(func(lc fx.Lifecycle, w *queue.Worker, client *asynq.Client, in struct {
 		fx.In
 		Registrations []queue.Registration `group:"queue-registrations"`
 	}) {
@@ -63,6 +72,9 @@ var QueueModule = fx.Module("queue",
 			},
 			OnStop: func(_ context.Context) error {
 				w.Stop()
+				if client != nil {
+					_ = client.Close()
+				}
 				return nil
 			},
 		})
