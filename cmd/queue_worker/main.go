@@ -28,8 +28,10 @@ func main() {
 	// Dùng Fx để DI worker/handlers và auto start theo lifecycle
 	fxApp := fx.New(
 		app.CoreModule,
-		app.RepoModule, // nếu cần tạo factory job cho nơi khác dùng
-		app.QueueModule, // module worker + handler + lifecycle
+		app.RepoModule,
+		app.ServiceModule, // nếu cần tạo factory job cho nơi khác dùng
+		app.QueueModule,   // module worker + handler + lifecycle
+		
 	)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

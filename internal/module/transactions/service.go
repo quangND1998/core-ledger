@@ -11,9 +11,7 @@ import (
 	"time"
 )
 
-type TransactionService interface {
-	listTransaction(ctx context.Context) ([]model.Transaction, error)
-}
+
 type transactionService struct {
 	repo.TransactionRepo
 	userRepo   repo.UserRepo

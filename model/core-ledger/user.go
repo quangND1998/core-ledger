@@ -1,7 +1,12 @@
 package model
 
+import "time"
+
 type User struct {
-	ID       int64  `gorm:"column:id;primaryKey;autoIncrement:true" json:"id"`
-	FullName string `gorm:"column:full_name;not null" json:"full_name"`
-	Email    string `gorm:"column:email;not null" json:"email"`
+	ID          uint64 `gorm:"primaryKey"`
+	Email       string `gorm:"unique;not null"`
+	Password    string
+	FullName    string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 }

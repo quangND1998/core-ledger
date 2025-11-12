@@ -25,10 +25,16 @@ var QueueModule = fx.Module("queue",
 				DB:       cfg.RedisDB,
 			}, cfg.Concurrency, cfg.Queues)
 		},
+		queue.NewDispatcher,
 		// Cấp phát handler có DI repo bên trong
 		handlers.NewDataProcessHandler,
 		handlers.NewMyJobHandler,
+		handlers.NewImportCoaAccountHandler,
+
 		fx.Annotate(handlers.NewDataProcessRegistration,
+			fx.ResultTags(`group:"queue-registrations"`),
+		),
+		fx.Annotate(handlers.NewImportCoaAccountHandlerRegistration,
 			fx.ResultTags(`group:"queue-registrations"`),
 		),
 		// Cấp phát registration theo group để dễ mở rộng nhiều job/handler

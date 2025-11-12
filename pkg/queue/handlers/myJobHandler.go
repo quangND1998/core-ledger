@@ -52,7 +52,7 @@ func (h *MyJobHandler) Handle(ctx context.Context, j queue.Job) error {
 // Failed: hook được gọi khi job đã hết retry hoặc timeout
 func (h *MyJobHandler) Failed(ctx context.Context, j queue.Job, err error) {
 	// cố gắng assert đúng loại job để log chi tiết
-	if job, ok := j.(*jobs.DataProcessJob); ok {
+	if job, ok := j.(*jobs.MyJob); ok {
 		log.Printf("[FAILED] DataProcessJob Type=%s Action=%s Error=%v", job.ProcessType, job.Action, err)
 	} else {
 		log.Printf("[FAILED] DataProcessJob Error=%v", err)
