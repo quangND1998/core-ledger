@@ -9,6 +9,8 @@ func registerAPIRoutes(r *gin.RouterGroup, h *CoaAccountHandler, middleware ...g
 	tx := r.Group("coa-accounts", middleware...)
 	{
 		tx.GET("/list", h.List)
+		tx.GET("/:id", h.GetCoaAccountDetail)
+		tx.POST("export", h.ExportCoaAccounts)
 		// Add more routes here
 		// tx.POST("", h.Create)
 		// tx.GET("/:id", h.GetByID)

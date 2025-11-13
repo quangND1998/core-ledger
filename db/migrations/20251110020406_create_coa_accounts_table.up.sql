@@ -9,6 +9,7 @@ BEGIN
             name VARCHAR(256) NOT NULL,
             type VARCHAR(16) NOT NULL CHECK (type IN ('ASSET','LIAB','EQUITY','REV','EXP')),
             currency CHAR(8) NOT NULL,
+            account_no VARCHAR(64) NOT NULL UNIQUE,
             parent_id BIGINT NULL,
             status VARCHAR(16) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','INACTIVE')),
             provider VARCHAR(64) NULL,
@@ -29,10 +30,13 @@ BEGIN
         CREATE INDEX idx_coa_type ON coa_accounts(type);
         CREATE INDEX idx_coa_provider ON coa_accounts(provider);
         CREATE INDEX idx_coa_network ON coa_accounts(network);
+        CREATE INDEX idx_account_no ON coa_accounts(account_no);
 
         -- ====== Thêm mô tả (comment) ======
         COMMENT ON TABLE coa_accounts IS 'Chart of Accounts (COA) - Danh mục tài khoản kế toán. Dùng cho cấu trúc tài chính.';
+
         COMMENT ON COLUMN coa_accounts.id IS 'Khóa chính (Primary Key)';
+        COMMENT ON COLUMN coa_accounts.account_no IS 'Mã số tài khoản kế toán';
         COMMENT ON COLUMN coa_accounts.code IS 'Mã tài khoản kế toán (duy nhất trong mỗi loại tiền tệ)';
         COMMENT ON COLUMN coa_accounts.name IS 'Tên tài khoản kế toán hiển thị';
         COMMENT ON COLUMN coa_accounts.type IS 'Loại tài khoản kế toán: ASSET (tài sản), LIAB (nợ phải trả), EQUITY (vốn chủ), REV (doanh thu), EXP (chi phí)';

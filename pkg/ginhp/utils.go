@@ -4,6 +4,7 @@ import (
 	"core-ledger/internal/core"
 	"errors"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -143,8 +144,8 @@ func RespondError(c *gin.Context, code int, message string) {
 		Code:    code,
 		Message: message,
 		System: System{
-			Name: "wealify",
-			Mode: "production",
+			Name: os.Getenv("APP_NAME"),
+			Mode: os.Getenv("MODE"),
 			Version: Version{
 				Code: 2,
 				Name: "v2.0.0",

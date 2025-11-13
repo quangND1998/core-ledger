@@ -9,6 +9,7 @@ import (
 type CoaAccount struct {
 	ID        uint64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
 	Code      string          `gorm:"type:varchar(128);not null;uniqueIndex:uniq_code_currency" json:"code"`
+	AccountNo string          `gorm:"type:varchar(64);uniqueIndex" json:"account_no"`
 	Name      string          `gorm:"type:varchar(256);not null" json:"name"`
 	Type      string          `gorm:"type:varchar(16);not null;check:type IN ('ASSET','LIAB','EQUITY','REV','EXP')" json:"type"`
 	Currency  string          `gorm:"type:char(8);not null;uniqueIndex:uniq_code_currency" json:"currency"`
@@ -24,6 +25,7 @@ type CoaAccount struct {
 	// Quan hệ
 	Parent   *CoaAccount  `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
 	Children []CoaAccount `gorm:"foreignKey:ParentID" json:"children,omitempty"`
+	Entries  []Entry      `gorm:"foreignKey:AccountID" json:"entries"`
 }
 
 // TableName đặt tên bảng rõ ràng

@@ -4,6 +4,8 @@ import (
 	"context"
 	model "core-ledger/model/core-ledger"
 	"core-ledger/model/dto"
+
+	"core-ledger/pkg/utils/helper"
 	wv "core-ledger/pkg/utils/wrapvalue"
 	"errors"
 
@@ -61,7 +63,12 @@ func (c *coAccountRepo) Upsert(accounts []*model.CoaAccount, updateColumns []str
 		// Mặc định update tất cả trường có thể thay đổi
 		updateColumns = []string{"name", "type", "parent_id", "status", "provider", "network", "tags", "metadata", "updated_at"}
 	}
-
+	for _, account := range accounts {
+		// account_no tạo khi chưa có
+		if account.AccountNo == "" {
+			account.AccountNo = helper.GenerateSecureNumber()
+		}
+	}
 	return c.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "code"}, {Name: "currency"}}, // cột unique
 		DoUpdates: clause.AssignmentColumns(updateColumns),
@@ -105,7 +112,7 @@ func (t *coAccountRepo) GetManyByFields(ctx context.Context, fields map[string]i
 func (s *coAccountRepo) Paginate(fields *dto.ListCoaAccountFilter) (*dto.PaginationResponse[*model.CoaAccount], error) {
 
 	var total int64
-	query := s.db.Model(&model.CoaAccount{})
+	query := s.db.Model(&model.CoaAccount{}).Order("id asc")
 	if fields.Name != nil && *fields.Name != "" {
 		likeQuery := "%" + *fields.Name + "%"
 		query = query.Where("name LIKE ?", likeQuery)
@@ -114,13 +121,26 @@ func (s *coAccountRepo) Paginate(fields *dto.ListCoaAccountFilter) (*dto.Paginat
 		likeQuery := "%" + *fields.Code + "%"
 		query = query.Where("code LIKE ?", likeQuery)
 	}
+	if fields.Status != nil && *fields.Status != "" {
+		query = query.Where("status = ?", *fields.Status)
+	}
+
+	if fields.Type != nil && *fields.Type != "" {
+		query = query.Where("type = ?", *fields.Type)
+	}
+
+	if fields.AccountNo != nil && *fields.AccountNo != "" {
+		likeQuery := "%" + *fields.AccountNo + "%"
+		query = query.Where("account_no LIKE ?", likeQuery)
+	}
+
 	err := query.Count(&total).Error
 	items := make([]*model.CoaAccount, 0, total)
 	if err != nil {
 		return nil, err
 	}
 
-	limit := 5
+	limit := 25
 	offset := 0
 	var page int64 = 1
 	if fields.Limit != nil {

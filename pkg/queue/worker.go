@@ -187,7 +187,8 @@ func (w *Worker) RegisterJob(jobType string, jobTemplate Job, handler JobHandler
 	if handler != nil {
 		w.handlers[jobType] = handler
 	}
-
+	log.Println("jobType", jobType)
+	log.Printf("Job handler", handler)
 	w.mux.HandleFunc(jobType, w.createHandler(jobType))
 }
 

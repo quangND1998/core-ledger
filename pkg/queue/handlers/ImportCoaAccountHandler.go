@@ -124,6 +124,7 @@ func (h *ImportCoaAccountHandler) Handle(ctx context.Context, j queue.Job) error
 					Provider: providerPtr,
 					Network:  networkPtr,
 					Metadata: metadataJSON, // TODO: parse JSON nếu cần
+
 				}
 
 				accounts = append(accounts, account)

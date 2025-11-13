@@ -15,6 +15,7 @@ type SnapshotRepo interface {
 	updater[*model.Snapshot]
 	Save(customer *model.Snapshot) error
 	Upsert(accounts []*model.Snapshot, updateColumns []string) error
+	GetByAccount(ctx context.Context, account int64) ([]model.Snapshot, error)
 }
 
 type snapShotRepo struct {
@@ -61,4 +62,9 @@ func (c *snapShotRepo) Upsert(accounts []*model.Snapshot, updateColumns []string
 		Columns:   []clause.Column{{Name: "code"}, {Name: "currency"}}, // cột unique
 		DoUpdates: clause.AssignmentColumns(updateColumns),
 	}).Create(&accounts).Error
+}
+
+func (c *snapShotRepo) GetByAccount(context context.Context, id int64) ([]model.Snapshot, error) {
+	snapshots := []model.Snapshot{}
+	return snapshots, c.db.WithContext(context).Where("account_id = ?", id).Find(&snapshots).Error
 }

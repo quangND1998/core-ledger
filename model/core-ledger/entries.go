@@ -28,6 +28,7 @@ type Entry struct {
 	// Quan hệ
 	Journal *Journal    `gorm:"foreignKey:JournalID" json:"journal,omitempty"`
 	Account *CoaAccount `gorm:"foreignKey:AccountID" json:"account,omitempty"`
+	
 }
 
 // TableName đặt tên bảng rõ ràng

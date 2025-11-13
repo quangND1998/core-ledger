@@ -5,6 +5,7 @@ import (
 	config "core-ledger/configs"
 	coaaccount "core-ledger/internal/module/coaAccount"
 	"core-ledger/internal/module/excel"
+	"core-ledger/internal/module/middleware"
 	"core-ledger/internal/module/transactions"
 	"core-ledger/model/dto"
 	"net/http"
@@ -37,8 +38,9 @@ type RouterParams struct {
 func NewRouter() *gin.Engine {
 	// use default with logger and recovery middleware
 	router := gin.New()
-	// router.Use(gin.Logger())
+
 	router.Use(gin.Recovery())
+	router.Use(middleware.LogRequest)
 	// router.Use(middleware.RateLimitMiddleware())
 	return router
 }
@@ -62,7 +64,14 @@ func SetupAllRoutes(params RouterParams) {
 			}},
 		)
 	})
-
+	params.Router.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error":   "Route not found",
+			"path":    c.Request.URL.Path,
+			"method":  c.Request.Method,
+			"message": "The requested endpoint does not exist.",
+		})
+	})
 	// Protected routes (with middleware)
 	// Option 1: Apply middleware to entire protected group
 	protected := api.Group("")

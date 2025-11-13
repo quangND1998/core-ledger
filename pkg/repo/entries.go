@@ -15,6 +15,7 @@ type EnTriesRepo interface {
 	updater[*model.Entry]
 	Save(customer *model.Entry) error
 	Upsert(accounts []*model.Entry, updateColumns []string) error
+	GetByAccount(ctx context.Context, id int64) ([]model.Entry, error)
 }
 
 type enTriesRepo struct {
@@ -61,4 +62,9 @@ func (c *enTriesRepo) Upsert(accounts []*model.Entry, updateColumns []string) er
 		Columns:   []clause.Column{{Name: "code"}, {Name: "currency"}}, // cột unique
 		DoUpdates: clause.AssignmentColumns(updateColumns),
 	}).Create(&accounts).Error
+}
+
+func (c *enTriesRepo) GetByAccount(context context.Context, id int64) ([]model.Entry, error) {
+	entries := []model.Entry{}
+	return entries, c.db.WithContext(context).Where("account_id = ?", id).Find(&entries).Error
 }
