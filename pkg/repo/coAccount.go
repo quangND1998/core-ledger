@@ -4,6 +4,7 @@ import (
 	"context"
 	model "core-ledger/model/core-ledger"
 	"core-ledger/model/dto"
+	"fmt"
 
 	"core-ledger/pkg/utils/helper"
 	wv "core-ledger/pkg/utils/wrapvalue"
@@ -22,6 +23,7 @@ type CoAccountRepo interface {
 	Save(customer *model.CoaAccount) error
 	Upsert(accounts []*model.CoaAccount, updateColumns []string) error
 	GetParentID(ctx context.Context, id string) (*uint64, error)
+	PaginateWithScopes(ctx context.Context, filter *dto.ListCoaAccountFilter) (*dto.PaginationResponse[*model.CoaAccount], error)
 }
 
 type coAccountRepo struct {
@@ -42,8 +44,22 @@ func (c *coAccountRepo) Create(customer ...*model.CoaAccount) error {
 }
 
 func (c *coAccountRepo) GetByID(ctx context.Context, id int64) (*model.CoaAccount, error) {
-	customer := &model.CoaAccount{}
-	return customer, c.db.WithContext(ctx).First(&customer, "id = ?", id).Error
+	account := &model.CoaAccount{}
+
+	err := c.db.Preload("Entries.Journal").First(&account, id).Error
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[uint64]model.Journal)
+	for _, e := range account.Entries {
+		m[e.JournalID] = *e.Journal
+	}
+
+	account.Journals = make([]model.Journal, 0, len(m))
+	for _, j := range m {
+		account.Journals = append(account.Journals, j)
+	}
+	return account, err
 }
 
 func (c *coAccountRepo) Update(customer *model.CoaAccount) error {
@@ -112,28 +128,30 @@ func (t *coAccountRepo) GetManyByFields(ctx context.Context, fields map[string]i
 func (s *coAccountRepo) Paginate(fields *dto.ListCoaAccountFilter) (*dto.PaginationResponse[*model.CoaAccount], error) {
 
 	var total int64
-	query := s.db.Model(&model.CoaAccount{}).Order("id asc")
-	if fields.Name != nil && *fields.Name != "" {
-		likeQuery := "%" + *fields.Name + "%"
-		query = query.Where("name LIKE ?", likeQuery)
-	}
-	if fields.Code != nil && *fields.Code != "" {
-		likeQuery := "%" + *fields.Code + "%"
-		query = query.Where("code LIKE ?", likeQuery)
-	}
-	if fields.Status != nil && *fields.Status != "" {
-		query = query.Where("status = ?", *fields.Status)
-	}
-
-	if fields.Type != nil && *fields.Type != "" {
-		query = query.Where("type = ?", *fields.Type)
+	fmt.Println("Status", fields.Status)
+	query := s.db.Model(&model.CoaAccount{}).Order("id DESC")
+	if fields.Search != nil && *fields.Search != "" {
+		likeQuery := "%" + *fields.Search + "%"
+		query = query.Where(
+			s.db.
+				Where("name LIKE ?", likeQuery).
+				Or("code LIKE ?", likeQuery).
+				Or("account_no LIKE ?", likeQuery),
+		)
 	}
 
-	if fields.AccountNo != nil && *fields.AccountNo != "" {
-		likeQuery := "%" + *fields.AccountNo + "%"
-		query = query.Where("account_no LIKE ?", likeQuery)
+	if len(fields.Types) > 0 {
+		query = query.Where("type IN (?)", fields.Types)
 	}
-
+	if len(fields.Status) > 0 {
+		query = query.Where("status IN (?)", fields.Status)
+	}
+	if len(fields.Networks) > 0 {
+		query = query.Where("network IN (?)", fields.Networks)
+	}
+	if len(fields.Providers) > 0 {
+		query = query.Where("provider IN (?)", fields.Providers)
+	}
 	err := query.Count(&total).Error
 	items := make([]*model.CoaAccount, 0, total)
 	if err != nil {
@@ -173,4 +191,28 @@ func (s *coAccountRepo) Paginate(fields *dto.ListCoaAccountFilter) (*dto.Paginat
 		NextPage:  nextPage,
 		PrevPage:  prevPage,
 	}, nil
+}
+func (r *coAccountRepo) PaginateWithScopes(ctx context.Context, fields *dto.ListCoaAccountFilter) (*dto.PaginationResponse[*model.CoaAccount], error) {
+	params := BuildParamsFromFilter(fields)
+
+	var items []*model.CoaAccount
+	// q := ApplyFilterScopeDynamic[*model.CoaAccount](r.db.Model(&model.CoaAccount{}), params, true)
+	// q = q.
+	// 	Preload("Entries").Preload("Parent").
+	// 	Preload("Children")
+	limit := int64(25)
+	page := int64(1)
+	if fields.Limit != nil {
+		limit = *fields.Limit
+	}
+	if fields.Page != nil {
+		page = *fields.Page
+	}
+
+	pagination, err := CustomPaginate(r.db.Model(&model.CoaAccount{}), params, page, limit, &items)
+	if err != nil {
+		return nil, err
+	}
+
+	return pagination, nil
 }

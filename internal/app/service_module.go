@@ -2,6 +2,7 @@ package app
 
 import (
 	coaaccount "core-ledger/internal/module/coaAccount"
+	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/transactions"
 
@@ -14,5 +15,6 @@ var ServiceModule = fx.Module("service",
 		transactions.NewTransactionService,
 		excel.NewExcelService,
 		coaaccount.NewCoaAccountService,
+		entries.NewEntriesService,
 	),
 )

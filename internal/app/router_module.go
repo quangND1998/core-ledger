@@ -4,6 +4,7 @@ import (
 	"context"
 	config "core-ledger/configs"
 	coaaccount "core-ledger/internal/module/coaAccount"
+	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/middleware"
 	"core-ledger/internal/module/transactions"
@@ -28,6 +29,7 @@ type RouterParams struct {
 	TransactionHandler *transactions.TransactionHandler
 	ExcelHandler       *excel.ExcelHandler
 	CoaAccountHandler  *coaaccount.CoaAccountHandler
+	EntriesHandler     *entries.EntriesHandler
 	// Add more handlers here as needed:
 	// UserHandler    *handler.UserHandler
 	// OrderHandler   *handler.OrderHandler
@@ -86,6 +88,7 @@ func SetupAllRoutes(params RouterParams) {
 	transactions.SetupRoutes(protected, params.TransactionHandler)
 	excel.SetupRoutes(protected, params.ExcelHandler)
 	coaaccount.SetupRoutes(protected, params.CoaAccountHandler)
+	entries.SetupRoutes(protected, params.EntriesHandler)
 	// With middleware (example):
 	// transactions.SetupRoutes(protected, params.TransactionHandler, transactions.AuthMiddleware(), transactions.LoggingMiddleware())
 

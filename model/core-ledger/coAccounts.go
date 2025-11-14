@@ -1,12 +1,15 @@
 package model
 
 import (
+	"strings"
 	"time"
 
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type CoaAccount struct {
+	Entity
 	ID        uint64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
 	Code      string          `gorm:"type:varchar(128);not null;uniqueIndex:uniq_code_currency" json:"code"`
 	AccountNo string          `gorm:"type:varchar(64);uniqueIndex" json:"account_no"`
@@ -26,9 +29,54 @@ type CoaAccount struct {
 	Parent   *CoaAccount  `gorm:"foreignKey:ParentID" json:"parent,omitempty"`
 	Children []CoaAccount `gorm:"foreignKey:ParentID" json:"children,omitempty"`
 	Entries  []Entry      `gorm:"foreignKey:AccountID" json:"entries"`
+	Journals []Journal    `gorm:"-" json:"journals"`
 }
 
 // TableName đặt tên bảng rõ ràng
-func (CoaAccount) TableName() string {
+func (c *CoaAccount) TableName() string {
 	return "coa_accounts"
+}
+
+func (c *CoaAccount) ScopeSearch(search string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if strings.TrimSpace(search) == "" {
+			return db
+		}
+		likeQuery := "%" + search + "%"
+		return db.Where(db.
+			Where("name LIKE ?", likeQuery).
+			Or("code LIKE ?", likeQuery).
+			Or("account_no LIKE ?", likeQuery))
+	}
+}
+
+func (c *CoaAccount) ScopeStatus(status []string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if len(status) == 0 {
+			return db
+		}
+		return db.Where("status IN ?", status)
+	}
+}
+
+func (c *CoaAccount) ScopeTypes(types []string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if len(types) == 0 {
+			return db
+		}
+		return db.Where("type IN ?", types) // Postgres array overlap example
+	}
+}
+
+func (c *CoaAccount) ScopeProviders(providers []string) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if len(providers) == 0 {
+			return db
+		}
+		return db.Where("provider IN ?", providers) // Postgres array overlap example
+	}
+}
+
+func (c *CoaAccount) ScopeSort(sortStr string) func(db *gorm.DB) *gorm.DB {
+	return c.Entity.ScopeSort(sortStr, CoaAccount{})
 }

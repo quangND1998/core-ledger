@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	model "core-ledger/model/core-ledger"
+	"core-ledger/model/dto"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -16,6 +17,7 @@ type EnTriesRepo interface {
 	Save(customer *model.Entry) error
 	Upsert(accounts []*model.Entry, updateColumns []string) error
 	GetByAccount(ctx context.Context, id int64) ([]model.Entry, error)
+	PaginateWithScopes(ctx context.Context, filter *dto.ListEntrytFilter) (*dto.PaginationResponse[*model.Entry], error)
 }
 
 type enTriesRepo struct {
@@ -67,4 +69,29 @@ func (c *enTriesRepo) Upsert(accounts []*model.Entry, updateColumns []string) er
 func (c *enTriesRepo) GetByAccount(context context.Context, id int64) ([]model.Entry, error) {
 	entries := []model.Entry{}
 	return entries, c.db.WithContext(context).Where("account_id = ?", id).Find(&entries).Error
+}
+
+func (r *enTriesRepo) PaginateWithScopes(ctx context.Context, fields *dto.ListEntrytFilter) (*dto.PaginationResponse[*model.Entry], error) {
+	params := BuildParamsFromFilter(fields)
+
+	var items []*model.Entry
+
+	// q = q.
+	// 	Preload("Entries").Preload("Parent").
+	// 	Preload("Children")
+	limit := int64(25)
+	page := int64(1)
+	if fields.Limit != nil {
+		limit = *fields.Limit
+	}
+	if fields.Page != nil {
+		page = *fields.Page
+	}
+
+	pagination, err := CustomPaginate(r.db.Model(&model.CoaAccount{}), params, page, limit, &items)
+	if err != nil {
+		return nil, err
+	}
+
+	return pagination, nil
 }

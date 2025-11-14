@@ -8,6 +8,7 @@ import (
 )
 
 type Entry struct {
+	Entity
 	ID          uint64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
 	JournalID   uint64          `gorm:"not null;index:idx_entries_journal_id" json:"journal_id"`
 	LineNo      int             `gorm:"not null" json:"line_no"`
@@ -28,7 +29,6 @@ type Entry struct {
 	// Quan hệ
 	Journal *Journal    `gorm:"foreignKey:JournalID" json:"journal,omitempty"`
 	Account *CoaAccount `gorm:"foreignKey:AccountID" json:"account,omitempty"`
-	
 }
 
 // TableName đặt tên bảng rõ ràng
@@ -48,4 +48,8 @@ func (e *Entry) BeforeCreate(tx *gorm.DB) (err error) {
 func (e *Entry) BeforeUpdate(tx *gorm.DB) (err error) {
 	e.UpdatedAt = time.Now()
 	return
+}
+
+func (c *Entry) ScopeSort(sortStr string) func(db *gorm.DB) *gorm.DB {
+	return c.Entity.ScopeSort(sortStr, CoaAccount{})
 }

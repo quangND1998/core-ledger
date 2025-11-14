@@ -6,6 +6,7 @@ import (
 	// "core-ledger/internal/module/transactions"
 	// "core-ledger/internal/module/wallets"
 	coaaccount "core-ledger/internal/module/coaAccount"
+	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/transactions"
 
@@ -17,6 +18,7 @@ var HandlerModule = fx.Module("handler",
 		transactions.NewTransactionHandler,
 		excel.NewExcelHandler,
 		coaaccount.NewCoaAccountHandler,
+		entries.NewEntriesHandler,
 	// accounthandler.NewAccountHandler,
 	// authhandler.NewHandler,
 	// wallets.NewWalletHandler,

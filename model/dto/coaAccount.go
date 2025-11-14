@@ -4,11 +4,13 @@ import model "core-ledger/model/core-ledger"
 
 type ListCoaAccountFilter struct {
 	BasePaginationQuery
-	Name      *string `json:"name,omitempty" form:"name"`
-	Code      *string `json:"code,omitempty" form:"code"`
-	Status    *string `json:"status,omitempty" form:"status"`
-	Type      *string `json:"type,omitempty" form:"type"`
-	AccountNo *string `json:"account_no,omitempty" form:"account_no"`
+	Search    *string   `json:"search,omitempty" form:"search"`
+	Status    []string  `json:"status,omitempty" form:"status[]"`
+	Types     []*string `json:"types,omitempty" form:"types[]"`
+	Currency  []*string `json:"currency,omitempty" form:"currency[]"`
+	Networks  []*string `json:"networks,omitempty" form:"networks[]"`
+	Providers []*string `json:"providers,omitempty" form:"providers[]"`
+	Sort      *string   `json:"sort,omitempty" form:"sort"`
 }
 
 type CoaAccountDetailResponse struct {

@@ -1,16 +1,15 @@
-package coaaccount
+package entries
 
 import (
 	"github.com/gin-gonic/gin"
 )
 
-func registerAPIRoutes(r *gin.RouterGroup, h *CoaAccountHandler, middleware ...gin.HandlerFunc) {
+func registerAPIRoutes(r *gin.RouterGroup, h *EntriesHandler, middleware ...gin.HandlerFunc) {
 	// Apply middleware to the group if provided
-	tx := r.Group("coa-accounts", middleware...)
+	tx := r.Group("entries", middleware...)
 	{
 		tx.GET("/list", h.List)
-		tx.GET("/:id", h.GetCoaAccountDetail)
-		tx.GET("export", h.ExportCoaAccounts)
+
 		// Add more routes here
 		// tx.POST("", h.Create)
 		// tx.GET("/:id", h.GetByID)
@@ -23,6 +22,6 @@ func registerAPIRoutes(r *gin.RouterGroup, h *CoaAccountHandler, middleware ...g
 // Usage:
 //   - Without middleware: transactions.SetupRoutes(protected, handler)
 //   - With middleware: transactions.SetupRoutes(protected, handler, authMiddleware, loggingMiddleware)
-func SetupRoutes(rg *gin.RouterGroup, h *CoaAccountHandler, middleware ...gin.HandlerFunc) {
+func SetupRoutes(rg *gin.RouterGroup, h *EntriesHandler, middleware ...gin.HandlerFunc) {
 	registerAPIRoutes(rg, h, middleware...)
 }
