@@ -45,9 +45,25 @@ func (h *CoaAccountHandler) List(c *gin.Context) {
 		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	h.logger.Info("ListCoaAccountFilter request", q)
+	// Log request filter
+	if qBytes, err := json.Marshal(q); err == nil {
+		h.logger.Info("ListCoaAccountFilter request:", string(qBytes))
+	} else {
+		h.logger.Info("ListCoaAccountFilter request:", q)
+	}
+
 	res, err := h.coAccountRepo.PaginateWithScopes(c, q)
-	h.logger.Info("ListCoaAccountFilter res", res)
+	if err != nil {
+		ginhp.RespondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	h.logger.Info("ListCoaAccountFilter res:", res)
+	// Log response với format JSON đẹp
+	// if resBytes, err := json.MarshalIndent(res, "", "  "); err == nil {
+	// 	h.logger.Info("ListCoaAccountFilter res:\n", string(resBytes))
+	// } else {
+	// 	h.logger.Info("ListCoaAccountFilter res:", res)
+	// }
 	c.JSON(http.StatusOK, dto.PreResponse{
 		Data: res,
 	})
