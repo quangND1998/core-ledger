@@ -3,71 +3,76 @@ package repo
 import (
 	"context"
 	model "core-ledger/model/core-ledger"
+	"core-ledger/model/dto"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
-type RuleCategoryRepo interface {
-	creator[*model.RuleCategory]
+type RuleValueRepo interface {
+	creator[*model.RuleValue]
 	// reader[*model.Journal, *dto.ListCustomerFilter]
-	getByID[*model.RuleCategory]
-	updater[*model.RuleCategory]
-	Save(customer *model.RuleCategory) error
-	Upsert(accounts []*model.RuleCategory, updateColumns []string) error
-	List(ctx context.Context) ([]*model.RuleCategory, error)
+	getByID[*model.RuleValue]
+	updater[*model.RuleValue]
+	Save(customer *model.RuleValue) error
+	Upsert(accounts []*model.RuleValue, updateColumns []string) error
+	List(ctx context.Context, filter *dto.FilterRuleValueRequest) ([]*model.RuleValue, error)
+	DeleteByIDs(ctx context.Context, ids []uint) error
 }
 
-type ruleCategoryRepo struct {
+type ruleValueRepo struct {
 	db *gorm.DB
 }
 
-func NewRuleCategoryRepo(db *gorm.DB) RuleCategoryRepo {
-	return &ruleCategoryRepo{
+func NewRuleValueRepo(db *gorm.DB) RuleValueRepo {
+	return &ruleValueRepo{
 		db: db,
 	}
 }
 
-func (c *ruleCategoryRepo) List(ctx context.Context) ([]*model.RuleCategory, error) {
-	var accounts []*model.RuleCategory
-	if err := c.db.WithContext(ctx).Find(&accounts).Error; err != nil {
+func (c *ruleValueRepo) List(ctx context.Context, filter *dto.FilterRuleValueRequest) ([]*model.RuleValue, error) {
+	var accounts []*model.RuleValue
+	if err := c.db.WithContext(ctx).Where("category_id = ? AND is_delete = false", filter.CategoryID).Find(&accounts).Error; err != nil {
 		return nil, err
 	}
 	return accounts, nil
 }
-func (c *ruleCategoryRepo) Save(customer *model.RuleCategory) error {
+func (c *ruleValueRepo) Save(customer *model.RuleValue) error {
 	return c.db.Create(&customer).Error
 }
 
-func (c *ruleCategoryRepo) Create(customer ...*model.RuleCategory) error {
+func (c *ruleValueRepo) Create(customer ...*model.RuleValue) error {
 	return c.db.Create(customer).Error
 }
 
-func (c *ruleCategoryRepo) GetByID(ctx context.Context, id int64) (*model.RuleCategory, error) {
-	customer := &model.RuleCategory{}
+func (c *ruleValueRepo) GetByID(ctx context.Context, id int64) (*model.RuleValue, error) {
+	customer := &model.RuleValue{}
 	return customer, c.db.WithContext(ctx).First(&customer, "id = ?", id).Error
 }
 
-func (c *ruleCategoryRepo) Update(customer *model.RuleCategory) error {
+func (c *ruleValueRepo) Update(customer *model.RuleValue) error {
 	return c.db.Save(&customer).Error
 }
 
-func (c *ruleCategoryRepo) UpdateSelectField(entity *model.RuleCategory, fields map[string]interface{}) error {
+func (c *ruleValueRepo) UpdateSelectField(entity *model.RuleValue, fields map[string]interface{}) error {
 	return c.db.Model(entity).Updates(fields).Error
 }
 
-func (c *ruleCategoryRepo) Upsert(accounts []*model.RuleCategory, updateColumns []string) error {
+func (c *ruleValueRepo) Upsert(accounts []*model.RuleValue, updateColumns []string) error {
 	if len(accounts) == 0 {
 		return nil
 	}
 
 	if len(updateColumns) == 0 {
 		// Mặc định update tất cả trường có thể thay đổi
-		updateColumns = []string{"status", "posted_at", "Meta", "updated_at"}
+		updateColumns = []string{"name", "value", "is_delete", "updated_at"}
 	}
 
 	return c.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "code"}, {Name: "currency"}}, // cột unique
+		Columns:   []clause.Column{{Name: "id"}}, // cột unique
 		DoUpdates: clause.AssignmentColumns(updateColumns),
 	}).Create(&accounts).Error
+}
+func (c *ruleValueRepo) DeleteByIDs(ctx context.Context, ids []uint) error {
+	return c.db.Where("id IN (?)", ids).Delete(&model.RuleValue{}).Error
 }

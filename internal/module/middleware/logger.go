@@ -1,10 +1,11 @@
 package middleware
 
 import (
+	"core-ledger/pkg/logging"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"time"
-	"core-ledger/pkg/logging"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )

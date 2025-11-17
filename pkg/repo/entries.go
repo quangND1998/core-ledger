@@ -88,7 +88,7 @@ func (r *enTriesRepo) PaginateWithScopes(ctx context.Context, fields *dto.ListEn
 		page = *fields.Page
 	}
 
-	pagination, err := CustomPaginate(r.db.Model(&model.CoaAccount{}), params, page, limit, &items)
+	pagination, err := CustomPaginate(r.db.Model(&model.Entry{}), params, page, limit, &items)
 	if err != nil {
 		return nil, err
 	}

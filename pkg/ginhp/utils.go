@@ -24,12 +24,13 @@ type System struct {
 	Timezone string  `json:"timezone"`
 }
 type Response struct {
-	Status  bool           `json:"status"`
-	Error   *core.AppError `json:"error,omitempty"`
-	Message string         `json:"message"`
-	Code    int            `json:"code"`
-	Data    interface{}    `json:"data"`
-	System  System         `json:"system"`
+	Status  bool              `json:"status"`
+	Error   *core.AppError    `json:"error,omitempty"`
+	Errors  map[string]string `json:"errors,omitempty"`
+	Message string            `json:"message"`
+	Code    int               `json:"code"`
+	Data    interface{}       `json:"data"`
+	System  System            `json:"system"`
 }
 
 func GetAccountReq(c *gin.Context) *AccountRequest {
@@ -142,6 +143,24 @@ func RespondError(c *gin.Context, code int, message string) {
 	c.AbortWithStatusJSON(code, Response{
 		Status:  false,
 		Code:    code,
+		Message: message,
+		System: System{
+			Name: os.Getenv("APP_NAME"),
+			Mode: os.Getenv("MODE"),
+			Version: Version{
+				Code: 2,
+				Name: "v2.0.0",
+				Path: "/v2",
+			},
+		},
+	})
+}
+
+func RespondErrorValidate(c *gin.Context, code int, message string, errors map[string]string) {
+	c.AbortWithStatusJSON(code, Response{
+		Status:  false,
+		Code:    code,
+		Errors:  errors,
 		Message: message,
 		System: System{
 			Name: os.Getenv("APP_NAME"),
