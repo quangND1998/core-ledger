@@ -194,148 +194,151 @@ func (s *coAccountRepo) Paginate(fields *dto.ListCoaAccountFilter) (*dto.Paginat
 }
 func (r *coAccountRepo) PaginateWithScopes(ctx context.Context, fields *dto.ListCoaAccountFilter) (*dto.PaginationResponse[*model.CoaAccount], error) {
 
-	params := BuildParamsFromFilter(fields)
+	// params := BuildParamsFromFilter(fields)
 
-	var items []*model.CoaAccount
+	// var items []*model.CoaAccount
 
-	// q = q.
-	// 	Preload("Entries").Preload("Parent").
-	// 	Preload("Children")
-	limit := int64(25)
-	page := int64(1)
-	if fields.Limit != nil {
-		limit = *fields.Limit
-	}
-	if fields.Page != nil {
-		page = *fields.Page
-	}
-
-	pagination, err := CustomPaginate(r.db.Model(&model.CoaAccount{}), params, page, limit, &items)
-	if err != nil {
-		return nil, err
-	}
-
-	return pagination, nil
-	// if fields == nil {
-	// 	fields = &dto.ListCoaAccountFilter{}
-	// }
-
-	// // Thiết lập giá trị mặc định
+	// // q = q.
+	// // 	Preload("Entries").Preload("Parent").
+	// // 	Preload("Children")
 	// limit := int64(25)
 	// page := int64(1)
-	// if fields.Limit != nil && *fields.Limit > 0 {
+	// if fields.Limit != nil {
 	// 	limit = *fields.Limit
 	// }
-	// if fields.Page != nil && *fields.Page > 0 {
+	// if fields.Page != nil {
 	// 	page = *fields.Page
 	// }
 
-	// // Tạo model instance để gọi scope methods
-	// coaAccount := &model.CoaAccount{}
-
-	// // Build query với context và áp dụng các scope methods
-	// query := r.db.WithContext(ctx).Model(&model.CoaAccount{})
-
-	// // Áp dụng scope search
-	// if fields.Search != nil && *fields.Search != "" {
-	// 	query = query.Scopes(coaAccount.ScopeSearch(*fields.Search))
+	// pagination, err := CustomPaginate(r.db.Model(&model.CoaAccount{}), params, page, limit, &items)
+	// if err != nil {
+	// 	return nil, err
 	// }
 
-	// // Áp dụng scope status
-	// if len(fields.Status) > 0 {
-	// 	query = query.Scopes(coaAccount.ScopeStatus(fields.Status))
-	// }
+	// return pagination, nil
+	if fields == nil {
+		fields = &dto.ListCoaAccountFilter{}
+	}
 
-	// // Áp dụng scope types (convert []*string sang []string)
-	// if len(fields.Types) > 0 {
-	// 	types := make([]string, 0, len(fields.Types))
-	// 	for _, t := range fields.Types {
-	// 		if t != nil {
-	// 			types = append(types, *t)
-	// 		}
-	// 	}
-	// 	if len(types) > 0 {
-	// 		query = query.Scopes(coaAccount.ScopeTypes(types))
-	// 	}
-	// }
+	// Thiết lập giá trị mặc định
+	limit := int64(25)
+	page := int64(1)
+	if fields.Limit != nil && *fields.Limit > 0 {
+		limit = *fields.Limit
+	}
+	if fields.Page != nil && *fields.Page > 0 {
+		page = *fields.Page
+	}
 
-	// // Áp dụng scope providers (convert []*string sang []string)
-	// if len(fields.Providers) > 0 {
-	// 	providers := make([]string, 0, len(fields.Providers))
-	// 	for _, p := range fields.Providers {
-	// 		if p != nil {
-	// 			providers = append(providers, *p)
-	// 		}
-	// 	}
-	// 	if len(providers) > 0 {
-	// 		query = query.Scopes(coaAccount.ScopeProviders(providers))
-	// 	}
-	// }
+	// Tạo model instance để gọi scope methods
+	coaAccount := &model.CoaAccount{}
 
-	// // Áp dụng scope sort
-	// if fields.Sort != nil && *fields.Sort != "" {
-	// 	query = query.Scopes(coaAccount.ScopeSort(*fields.Sort))
-	// }
+	// Build query với context và áp dụng các scope methods
+	query := r.db.WithContext(ctx).Model(&model.CoaAccount{})
 
-	// // Filter networks nếu có (chưa có scope method, dùng trực tiếp)
-	// if len(fields.Networks) > 0 {
-	// 	networks := make([]string, 0, len(fields.Networks))
-	// 	for _, n := range fields.Networks {
-	// 		if n != nil {
-	// 			networks = append(networks, *n)
-	// 		}
-	// 	}
-	// 	if len(networks) > 0 {
-	// 		query = query.Where("network IN ?", networks)
-	// 	}
-	// }
+	// Áp dụng scope search
+	if fields.Search != nil && *fields.Search != "" {
+		query = query.Scopes(coaAccount.ScopeSearch(*fields.Search))
+	}
 
-	// // Filter currency nếu có (chưa có scope method, dùng trực tiếp)
-	// if len(fields.Currency) > 0 {
-	// 	currencies := make([]string, 0, len(fields.Currency))
-	// 	for _, c := range fields.Currency {
-	// 		if c != nil {
-	// 			currencies = append(currencies, *c)
-	// 		}
-	// 	}
-	// 	if len(currencies) > 0 {
-	// 		query = query.Where("currency IN ?", currencies)
-	// 	}
-	// }
+	// Áp dụng scope status
+	if len(fields.Status) > 0 {
+		query = query.Scopes(coaAccount.ScopeStatus(fields.Status))
+	}
 
-	// // Đếm tổng số bản ghi (không có sort và limit/offset)
-	// var total int64
-	// countQuery := query.Session(&gorm.Session{})
-	// if err := countQuery.Count(&total).Error; err != nil {
-	// 	return nil, fmt.Errorf("failed to count: %w", err)
-	// }
+	// Áp dụng scope types (convert []*string sang []string)
+	if len(fields.Types) > 0 {
+		types := make([]string, 0, len(fields.Types))
+		for _, t := range fields.Types {
+			if t != nil {
+				types = append(types, *t)
+			}
+		}
+		if len(types) > 0 {
+			query = query.Scopes(coaAccount.ScopeTypes(types))
+		}
+	}
 
-	// // Query dữ liệu với pagination
-	// var items []*model.CoaAccount
-	// offset := int((page - 1) * limit)
-	// if err := query.Limit(int(limit)).Offset(offset).Find(&items).Error; err != nil {
-	// 	return nil, fmt.Errorf("failed to find: %w", err)
-	// }
+	// Áp dụng scope providers (convert []*string sang []string)
+	if len(fields.Providers) > 0 {
+		providers := make([]string, 0, len(fields.Providers))
+		for _, p := range fields.Providers {
+			if p != nil {
+				providers = append(providers, *p)
+			}
+		}
+		if len(providers) > 0 {
+			query = query.Scopes(coaAccount.ScopeProviders(providers))
+		}
+	}
 
-	// // Tính toán pagination
-	// totalPage := (total + limit - 1) / limit
-	// var nextPage, prevPage *int64
-	// if page < totalPage {
-	// 	n := page + 1
-	// 	nextPage = &n
-	// }
-	// if page > 1 {
-	// 	p := page - 1
-	// 	prevPage = &p
-	// }
+	// Filter networks nếu có (chưa có scope method, dùng trực tiếp)
+	if len(fields.Networks) > 0 {
+		networks := make([]string, 0, len(fields.Networks))
+		for _, n := range fields.Networks {
+			if n != nil {
+				networks = append(networks, *n)
+			}
+		}
+		if len(networks) > 0 {
+			query = query.Where("network IN ?", networks)
+		}
+	}
 
-	// return &dto.PaginationResponse[*model.CoaAccount]{
-	// 	Items:     items,
-	// 	Total:     total,
-	// 	Limit:     limit,
-	// 	Page:      page,
-	// 	TotalPage: totalPage,
-	// 	NextPage:  nextPage,
-	// 	PrevPage:  prevPage,
-	// }, nil
+	// Filter currency nếu có (chưa có scope method, dùng trực tiếp)
+	if len(fields.Currency) > 0 {
+		currencies := make([]string, 0, len(fields.Currency))
+		for _, c := range fields.Currency {
+			if c != nil {
+				currencies = append(currencies, *c)
+			}
+		}
+		if len(currencies) > 0 {
+			query = query.Where("currency IN ?", currencies)
+		}
+	}
+
+	// Đếm tổng số bản ghi (không có sort và limit/offset)
+	var total int64
+	countQuery := query.
+		Session(&gorm.Session{}).
+		Limit(-1).
+		Offset(-1).
+		Clauses(clause.OrderBy{})
+	if err := countQuery.Count(&total).Error; err != nil {
+		return nil, fmt.Errorf("failed to count: %w", err)
+	}
+
+	// Query dữ liệu với pagination
+	dataQuery := query.Session(&gorm.Session{})
+	if fields.Sort != nil && *fields.Sort != "" {
+		dataQuery = dataQuery.Scopes(coaAccount.ScopeSort(*fields.Sort))
+	}
+	var items []*model.CoaAccount
+	offset := int((page - 1) * limit)
+	if err := dataQuery.Limit(int(limit)).Offset(offset).Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("failed to find: %w", err)
+	}
+
+	// Tính toán pagination
+	totalPage := (total + limit - 1) / limit
+	var nextPage, prevPage *int64
+	if page < totalPage {
+		n := page + 1
+		nextPage = &n
+	}
+	if page > 1 {
+		p := page - 1
+		prevPage = &p
+	}
+
+	return &dto.PaginationResponse[*model.CoaAccount]{
+		Items:     items,
+		Total:     total,
+		Limit:     limit,
+		Page:      page,
+		TotalPage: totalPage,
+		NextPage:  nextPage,
+		PrevPage:  prevPage,
+	}, nil
 }
