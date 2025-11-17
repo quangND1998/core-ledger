@@ -8,6 +8,8 @@ import (
 	coaaccount "core-ledger/internal/module/coaAccount"
 	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
+	"core-ledger/internal/module/ruleCategory"
+	"core-ledger/internal/module/ruleValue"
 	"core-ledger/internal/module/transactions"
 
 	"go.uber.org/fx"
@@ -19,6 +21,8 @@ var HandlerModule = fx.Module("handler",
 		excel.NewExcelHandler,
 		coaaccount.NewCoaAccountHandler,
 		entries.NewEntriesHandler,
+		ruleCategory.NewRuleCategoryHandler,
+		ruleValue.NewRuleValueHandler,
 	// accounthandler.NewAccountHandler,
 	// authhandler.NewHandler,
 	// wallets.NewWalletHandler,

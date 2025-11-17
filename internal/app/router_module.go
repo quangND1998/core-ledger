@@ -7,6 +7,8 @@ import (
 	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/middleware"
+	"core-ledger/internal/module/ruleCategory"
+	"core-ledger/internal/module/ruleValue"
 	"core-ledger/internal/module/transactions"
 	"core-ledger/model/dto"
 	"net/http"
@@ -24,12 +26,14 @@ import (
 type RouterParams struct {
 	fx.In
 
-	Router             *gin.Engine
-	Lifecycle          fx.Lifecycle
-	TransactionHandler *transactions.TransactionHandler
-	ExcelHandler       *excel.ExcelHandler
-	CoaAccountHandler  *coaaccount.CoaAccountHandler
-	EntriesHandler     *entries.EntriesHandler
+	Router              *gin.Engine
+	Lifecycle           fx.Lifecycle
+	TransactionHandler  *transactions.TransactionHandler
+	ExcelHandler        *excel.ExcelHandler
+	CoaAccountHandler   *coaaccount.CoaAccountHandler
+	EntriesHandler      *entries.EntriesHandler
+	RuleCategoryHandler *ruleCategory.RuleCategoryHandler
+	RuleValueHander     *ruleValue.RuleValueHandler
 	// Add more handlers here as needed:
 	// UserHandler    *handler.UserHandler
 	// OrderHandler   *handler.OrderHandler
@@ -89,6 +93,8 @@ func SetupAllRoutes(params RouterParams) {
 	excel.SetupRoutes(protected, params.ExcelHandler)
 	coaaccount.SetupRoutes(protected, params.CoaAccountHandler)
 	entries.SetupRoutes(protected, params.EntriesHandler)
+	ruleCategory.SetupRoutes(protected, params.RuleCategoryHandler)
+	ruleValue.SetupRoutes(protected, params.RuleValueHander)
 	// With middleware (example):
 	// transactions.SetupRoutes(protected, params.TransactionHandler, transactions.AuthMiddleware(), transactions.LoggingMiddleware())
 

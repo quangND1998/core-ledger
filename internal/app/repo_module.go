@@ -16,5 +16,7 @@ var RepoModule = fx.Module("repo",
 		repo.NewTransactionLogRepo,
 		repo.NewSnapshotRepo,
 		repo.NewJournalRepo,
+		repo.NewRuleCategoryRepo,
+		repo.NewRuleValueRepo,
 	),
 )
