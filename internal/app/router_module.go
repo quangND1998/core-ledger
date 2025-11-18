@@ -52,7 +52,7 @@ func NewRouter() *gin.Engine {
 }
 
 func SetupAllRoutes(params RouterParams) {
-	api := params.Router.Group("/api/v2")
+	api := params.Router.Group("/api/v1")
 	params.Router.GET("/", func(c *gin.Context) {
 		c.JSON(200, dto.PreResponse{
 			Data: gin.H{

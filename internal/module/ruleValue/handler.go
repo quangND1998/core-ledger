@@ -37,7 +37,7 @@ func NewRuleValueHandler(db *gorm.DB, service *RuleCateogySerive, ruleValueRepo 
 }
 
 func (h *RuleValueHandler) List(c *gin.Context) {
-	var req *dto.FilterRuleValueRequest
+	var req dto.FilterRuleValueRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
 		h.logger.Error("Error while binding query", err)
 		out := validate.FormatErrorMessage(req, err)
@@ -46,7 +46,7 @@ func (h *RuleValueHandler) List(c *gin.Context) {
 		return
 	}
 
-	res, err := h.ruleValueRepo.List(c, req)
+	res, err := h.ruleValueRepo.List(c, &req)
 	if err != nil {
 		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
 		return

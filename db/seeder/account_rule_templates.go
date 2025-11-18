@@ -303,4 +303,3 @@ func uint64Pointer(v uint64) *uint64 {
 	val := v
 	return &val
 }
-
