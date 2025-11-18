@@ -42,6 +42,7 @@ require (
 	github.com/didip/tollbooth_gin v0.0.0-20250404214326-bb1a1fc0384e // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
+	github.com/gin-contrib/cors v1.7.6 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-pkgz/expirable-cache/v3 v3.0.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
