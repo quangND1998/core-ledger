@@ -8,8 +8,8 @@ import (
 )
 
 type RuleCateogySerive struct {
-	db *gorm.DB
-
+	db         *gorm.DB
+	
 	logger     logger.CustomLogger
 	dispatcher queue.Dispatcher
 }

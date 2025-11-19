@@ -2,6 +2,9 @@ package coaaccount
 
 import (
 	"bytes"
+	"core-ledger/internal/logging"
+	"core-ledger/internal/module/validate"
+	model "core-ledger/model/core-ledger"
 	"core-ledger/model/dto"
 	"core-ledger/pkg/ginhp"
 	"core-ledger/pkg/logger"
@@ -23,14 +26,16 @@ import (
 
 type CoaAccountHandler struct {
 	logger        logger.CustomLogger
+	loggerDB      *logging.Service
 	service       *CoaAccountService
 	coAccountRepo repo.CoAccountRepo
 	dispatcher    queue.Dispatcher
 }
 
-func NewCoaAccountHandler(service *CoaAccountService, coAccountRepo repo.CoAccountRepo, dispatcher queue.Dispatcher) *CoaAccountHandler {
+func NewCoaAccountHandler(service *CoaAccountService, loggerDB *logging.Service, coAccountRepo repo.CoAccountRepo, dispatcher queue.Dispatcher) *CoaAccountHandler {
 	return &CoaAccountHandler{
 		logger:        logger.NewSystemLog("CoaAccountHandler"),
+		loggerDB:      loggerDB,
 		service:       service,
 		coAccountRepo: coAccountRepo,
 		dispatcher:    dispatcher,
@@ -294,4 +299,135 @@ func (h *CoaAccountHandler) getDataHeader(f *excelize.File, sheetName string, ke
 	f.SetRowHeight(sheetName, rowIndex, 40)
 
 	return nil
+}
+
+func (h *CoaAccountHandler) Create(c *gin.Context) {
+	var req dto.CoaAccountCreateRequest
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+
+		out := validate.FormatErrorMessage(req, err)
+		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
+		return
+	}
+
+	exists, err := h.coAccountRepo.Exists(c, map[string]any{
+		"account_no": req.AccountNo,
+	})
+	if err != nil {
+		ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra")
+		return
+	}
+	if exists {
+		ginhp.RespondError(c, http.StatusBadRequest, "Mã tài khoản đã tồn tại")
+		return
+	}
+
+	exists, err = h.coAccountRepo.Exists(c, map[string]any{
+		"code": req.Code,
+	})
+	if err != nil {
+		ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra")
+		return
+	}
+	if exists {
+		ginhp.RespondError(c, http.StatusBadRequest, "Mã tài khoản đã tồn tại")
+		return
+	}
+	// create coa account
+	coaAcount := model.CoaAccount{
+		AccountNo: req.AccountNo,
+		Code:      req.Code,
+		Name:      req.Name,
+		Network:   &req.Network,
+		Provider:  &req.Provider,
+		Type:      req.Type,
+		Currency:  req.Currency,
+		Status:    req.Status,
+	}
+
+	err = h.coAccountRepo.Save(&coaAcount)
+	if err != nil {
+		ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra")
+		return
+	}
+
+	ginhp.RespondOK(c, "Thêm mới thành công")
+
+}
+
+func (h *CoaAccountHandler) ExistAccoutnNo(c *gin.Context) {
+	h.logger.Info("ExistAccoutnNo request")
+	account_no := c.Param("account_no")
+	if account_no == "" {
+		ginhp.RespondError(c, http.StatusBadRequest, "Mã tài khoản đã tổn tại")
+		return
+	}
+
+	exists, err := h.coAccountRepo.Exists(c, map[string]any{
+		"account_no": account_no,
+	})
+	if err != nil {
+		ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra")
+		return
+	}
+	if exists {
+		ginhp.RespondError(c, http.StatusBadRequest, "Mã tài khoản đã tồn tại")
+		return
+	}
+	ginhp.RespondOK(c, "Mã tài khoản chưa tồn tại")
+}
+
+func (h *CoaAccountHandler) Update(c *gin.Context) {
+	id, err := utils.ParseIntIdParam(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "error": "Invalid SystemPaymentID"})
+		return
+	}
+	res, err := h.coAccountRepo.GetByID(c, id)
+	if err != nil {
+		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	if res.Status == "APPROVED" || res.Status == "ACTIVE" {
+		ginhp.RespondError(c, http.StatusBadRequest, "Không thể cập nhật tài khoản đã được duyệt")
+		return
+	}
+	var req dto.UpdateCoaAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		out := validate.FormatErrorMessage(req, err)
+		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
+		return
+	}
+	err = h.coAccountRepo.UpdateSelectField(res, map[string]interface{}{
+		"name": req.Name,
+	})
+	if err != nil {
+		ginhp.RespondError(c, http.StatusBadRequest, "Có lỗi xảy ra")
+		return
+	}
+	ginhp.RespondOK(c, "Cập nhật thành công")
+}
+
+func (h *CoaAccountHandler) UpdateStatus(c *gin.Context) {
+	var req dto.UpdateStatusCoaAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		out := validate.FormatErrorMessage(req, err)
+		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
+		return
+	}
+	res, err := h.coAccountRepo.GetByID(c, req.ID)
+	if err != nil {
+		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+	err = h.coAccountRepo.UpdateSelectField(res, map[string]interface{}{
+		"status": req.Status,
+	})
+	if err != nil {
+		ginhp.RespondError(c, http.StatusBadRequest, "Có lỗi xảy ra")
+		return
+	}
+
+	ginhp.RespondOK(c, "Cập nhật thành công")
 }

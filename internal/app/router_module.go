@@ -7,6 +7,7 @@ import (
 	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/middleware"
+	"core-ledger/internal/module/option"
 	"core-ledger/internal/module/ruleCategory"
 	"core-ledger/internal/module/ruleValue"
 	"core-ledger/internal/module/transactions"
@@ -34,6 +35,7 @@ type RouterParams struct {
 	EntriesHandler      *entries.EntriesHandler
 	RuleCategoryHandler *ruleCategory.RuleCategoryHandler
 	RuleValueHander     *ruleValue.RuleValueHandler
+	OptionHandler       *option.OptionHandler
 	// Add more handlers here as needed:
 	// UserHandler    *handler.UserHandler
 	// OrderHandler   *handler.OrderHandler
@@ -114,6 +116,7 @@ func SetupAllRoutes(params RouterParams) {
 	entries.SetupRoutes(protected, params.EntriesHandler)
 	ruleCategory.SetupRoutes(protected, params.RuleCategoryHandler)
 	ruleValue.SetupRoutes(protected, params.RuleValueHander)
+	option.SetupRoutes(protected, params.OptionHandler)
 	// With middleware (example):
 	// transactions.SetupRoutes(protected, params.TransactionHandler, transactions.AuthMiddleware(), transactions.LoggingMiddleware())
 

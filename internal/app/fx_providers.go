@@ -10,6 +10,7 @@ var FXProviders = fx.Options(
 	RouterModule,
 	QueueClientModule,
 	ValidateModule,
+	LogDBModule,
 	// QueueModule,
 	fx.Provide(NewApplication),
 )

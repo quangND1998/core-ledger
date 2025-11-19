@@ -12,7 +12,7 @@ func main() {
 	db := database.Instance()
 
 	seeders := []func(*gorm.DB) error{
-		// seeder.SeederRuleCategories,
+		seeder.SeederRuleCategories,
 		seeder.SeederAccountRuleTemplates,
 	}
 

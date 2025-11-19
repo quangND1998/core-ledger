@@ -1,7 +1,7 @@
 package dto
 
 type RuleValueRequest struct {
-	ID       uint   `json:"id,omitempty"`
+	ID       uint64 `json:"id,omitempty"`
 	Value    string `json:"value" binding:"required"`
 	Name     string `json:"name" binding:"required"`
 	IsDelete *bool  `json:"is_delete" binding:"boolean,required"`

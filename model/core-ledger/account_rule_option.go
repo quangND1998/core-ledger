@@ -14,6 +14,7 @@ type AccountRuleOption struct {
 	Name           string            `gorm:"type:varchar(255);not null" json:"name"`
 	Status         string            `gorm:"type:varchar(16);default:'ACTIVE'" json:"status"`
 	SortOrder      int               `gorm:"default:0" json:"sort_order"`
+	InputType      string            `gorm:"type:varchar(16);default:'SELECT'" json:"input_type"`
 	Metadata       datatypes.JSONMap `gorm:"type:jsonb;default:'{}'" json:"metadata,omitempty"`
 	CreatedAt      time.Time         `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt      time.Time         `gorm:"autoUpdateTime" json:"updated_at"`
@@ -22,4 +23,3 @@ type AccountRuleOption struct {
 func (AccountRuleOption) TableName() string {
 	return "account_rule_options"
 }
-

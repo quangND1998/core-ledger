@@ -36,7 +36,7 @@ func SeederAccountRuleTemplates(db *gorm.DB) error {
 
 	typeSeed := []model.AccountRuleOption{
 		{LayerID: layerMap["TYPE"].ID, Code: "ASSET", Name: "Asset"},
-		{LayerID: layerMap["TYPE"].ID, Code: "LIAB", Name: "Liability"},
+		{LayerID: layerMap["TYPE"].ID, Code: "LIAB", Name: "Liability", InputType: "TEXT"},
 		{LayerID: layerMap["TYPE"].ID, Code: "REV", Name: "Revenue"},
 		{LayerID: layerMap["TYPE"].ID, Code: "EXP", Name: "Expense"},
 	}

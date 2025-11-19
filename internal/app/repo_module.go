@@ -18,5 +18,8 @@ var RepoModule = fx.Module("repo",
 		repo.NewJournalRepo,
 		repo.NewRuleCategoryRepo,
 		repo.NewRuleValueRepo,
+		repo.NewRuleOptionRepo,
+		repo.NewRuleOptionStepRepo,
+		repo.NewRuleLayerRepo,
 	),
 )

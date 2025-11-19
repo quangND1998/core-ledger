@@ -17,8 +17,8 @@ import (
 )
 
 type RuleValueHandler struct {
-	db               *gorm.DB
-	logger           logger.CustomLogger
+	db     *gorm.DB
+	logger logger.CustomLogger
 	service          *RuleCateogySerive
 	ruleValueRepo    repo.RuleValueRepo
 	ruleCategoryRepo repo.RuleCategoryRepo

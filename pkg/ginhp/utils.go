@@ -73,8 +73,8 @@ func RespondOK(c *gin.Context, data interface{}) {
 		Message: "success",
 		Data:    data,
 		System: System{
-			Name: "wealify",
-			Mode: "production",
+			Name: os.Getenv("APP_NAME"),
+			Mode: os.Getenv("MODE"),
 			Version: Version{
 				Code: 2,
 				Name: "v2.0.0",
@@ -93,8 +93,8 @@ func RespondOKPagination(c *gin.Context, data interface{}, page, limit int, tota
 		Limit:   limit,
 		Total:   total,
 		System: System{
-			Name: "wealify",
-			Mode: "production",
+			Name: os.Getenv("APP_NAME"),
+			Mode: os.Getenv("MODE"),
 			Version: Version{
 				Code: 2,
 				Name: "v2.0.0",
@@ -129,8 +129,8 @@ func RespondOKWithError(c *gin.Context, err error) {
 		Message: "error",
 		Error:   appErr,
 		System: System{
-			Name: "wealify",
-			Mode: "production",
+			Name: os.Getenv("APP_NAME"),
+			Mode: os.Getenv("MODE"),
 			Version: Version{
 				Code: 2,
 				Name: "v2.0.0",

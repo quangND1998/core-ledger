@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS account_rule_options (
     code VARCHAR(128) NOT NULL,
     name VARCHAR(255) NOT NULL,
     status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',
+    input_type VARCHAR(16) NOT NULL DEFAULT 'SELECT',
     sort_order INT NOT NULL DEFAULT 0,
     metadata JSONB DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

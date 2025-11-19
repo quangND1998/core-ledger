@@ -1,0 +1,2 @@
+ALTER TABLE account_rule_options
+ADD COLUMN IF NOT EXISTS input_type VARCHAR(16) NOT NULL DEFAULT 'SELECT';

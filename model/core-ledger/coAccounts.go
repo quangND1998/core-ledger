@@ -30,6 +30,8 @@ type CoaAccount struct {
 	Children []CoaAccount `gorm:"foreignKey:ParentID" json:"children,omitempty"`
 	Entries  []Entry      `gorm:"foreignKey:AccountID" json:"entries"`
 	Journals []Journal    `gorm:"-" json:"journals"`
+
+	Logs []Log `gorm:"polymorphic:Loggable;polymorphicValue:coa_accounts" json:"logs,omitempty"`
 }
 
 // TableName đặt tên bảng rõ ràng
@@ -80,3 +82,5 @@ func (c *CoaAccount) ScopeProviders(providers []string) func(db *gorm.DB) *gorm.
 func (c *CoaAccount) ScopeSort(sortStr string) func(db *gorm.DB) *gorm.DB {
 	return c.Entity.ScopeSort(sortStr, CoaAccount{})
 }
+func (c *CoaAccount) GetLoggableID() uint64   { return c.ID }
+func (c *CoaAccount) GetLoggableType() string { return "coa_accounts" }

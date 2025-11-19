@@ -24,6 +24,7 @@ type CoAccountRepo interface {
 	Upsert(accounts []*model.CoaAccount, updateColumns []string) error
 	GetParentID(ctx context.Context, id string) (*uint64, error)
 	PaginateWithScopes(ctx context.Context, filter *dto.ListCoaAccountFilter) (*dto.PaginationResponse[*model.CoaAccount], error)
+	Exists(ctx context.Context, fields map[string]interface{}) (bool, error)
 }
 
 type coAccountRepo struct {
@@ -341,4 +342,13 @@ func (r *coAccountRepo) PaginateWithScopes(ctx context.Context, fields *dto.List
 		NextPage:  nextPage,
 		PrevPage:  prevPage,
 	}, nil
+}
+
+func (r *coAccountRepo) Exists(ctx context.Context, fields map[string]interface{}) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.CoaAccount{}).Where(fields).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
