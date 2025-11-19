@@ -2,6 +2,8 @@ package logging
 
 import (
 	model "core-ledger/model/core-ledger"
+	"core-ledger/pkg/queue"
+	"core-ledger/pkg/queue/jobs"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,11 +15,15 @@ import (
 )
 
 type Service struct {
-	db *gorm.DB
+	db         *gorm.DB
+	dispatcher queue.Dispatcher
 }
 
-func NewService(db *gorm.DB) *Service {
-	return &Service{db: db}
+func NewService(db *gorm.DB, dispatcher queue.Dispatcher) *Service {
+	return &Service{
+		db:         db,
+		dispatcher: dispatcher,
+	}
 }
 
 // -------------------- MANUAL CREATE LOG --------------------
@@ -41,16 +47,28 @@ func (s *Service) CreateLog(obj Loggable, action string, oldVal, newVal any, cre
 }
 
 // -------------------- REGISTER CALLBACKS --------------------
-func RegisterCallbacks(db *gorm.DB) {
+func RegisterCallbacks(db *gorm.DB, dispatcher queue.Dispatcher) {
+	// Store dispatcher in a way that callbacks can access it
+	// We'll use a global variable or pass it through context
+	// For now, we'll use a package-level variable
+	globalDispatcher = dispatcher
+	
 	db.Callback().Create().After("gorm:after_create").Register("auto_log_create", autoLogCreate)
 	db.Callback().Update().Before("gorm:before_update").Register("auto_log_before_update", autoLogBeforeUpdate)
 	db.Callback().Update().After("gorm:after_update").Register("auto_log_after_update", autoLogAfterUpdate)
 	db.Callback().Delete().After("gorm:after_delete").Register("auto_log_delete", autoLogDelete)
 }
 
+// Global dispatcher for callbacks (since callbacks don't have access to service instance)
+var globalDispatcher queue.Dispatcher
+
 // -------------------- CREATE CALLBACK --------------------
 func autoLogCreate(db *gorm.DB) {
 	fmt.Printf("🔔 [DEBUG] autoLogCreate called, dest type: %T\n", db.Statement.Dest)
+	
+	// Track processed IDs to avoid duplicates in batch operations
+	processed := make(map[string]bool)
+	
 	iterateLoggable(db.Statement.Dest, func(obj Loggable) {
 		fmt.Printf("🔔 [DEBUG] Processing loggable: %s, ID: %d\n", obj.GetLoggableType(), obj.GetLoggableID())
 		if !shouldLog(obj) {
@@ -64,6 +82,14 @@ func autoLogCreate(db *gorm.DB) {
 			return
 		}
 
+		// Create unique key to track duplicates
+		key := fmt.Sprintf("%s:%d", obj.GetLoggableType(), id)
+		if processed[key] {
+			fmt.Printf("⚠️  [DEBUG] Skipping duplicate log for %s (already processed)\n", key)
+			return
+		}
+		processed[key] = true
+
 		newJSON, _ := json.Marshal(obj)
 		log := model.Log{
 			LoggableID:   id,
@@ -73,11 +99,11 @@ func autoLogCreate(db *gorm.DB) {
 			CreatedAt:    time.Now(),
 		}
 
-		// Use raw SQL to insert log to avoid association issues
-		if err := insertLogRaw(db, &log); err != nil {
-			fmt.Printf("❌ autoLogCreate: failed to create log for %s:%d: %v\n", obj.GetLoggableType(), id, err)
+		// Dispatch log job to queue instead of inserting directly
+		if err := dispatchLogJob(&log); err != nil {
+			fmt.Printf("❌ autoLogCreate: failed to dispatch log job for %s:%d: %v\n", obj.GetLoggableType(), id, err)
 		} else {
-			fmt.Printf("✅ autoLogCreate: successfully created log for %s:%d\n", obj.GetLoggableType(), id)
+			fmt.Printf("✅ autoLogCreate: successfully dispatched log job for %s:%d\n", obj.GetLoggableType(), id)
 		}
 	})
 }
@@ -233,11 +259,11 @@ func autoLogAfterUpdate(db *gorm.DB) {
 					CreatedAt:    time.Now(),
 				}
 
-				// Use raw SQL to insert log to avoid association issues
-				if err := insertLogRaw(db, &log); err != nil {
-					fmt.Printf("❌ autoLogAfterUpdate: failed to create log for %s:%d: %v\n", modelObj.GetLoggableType(), id, err)
+				// Dispatch log job to queue instead of inserting directly
+				if err := dispatchLogJob(&log); err != nil {
+					fmt.Printf("❌ autoLogAfterUpdate: failed to dispatch log job for %s:%d: %v\n", modelObj.GetLoggableType(), id, err)
 				} else {
-					fmt.Printf("✅ autoLogAfterUpdate: successfully created log for %s:%d\n", modelObj.GetLoggableType(), id)
+					fmt.Printf("✅ autoLogAfterUpdate: successfully dispatched log job for %s:%d\n", modelObj.GetLoggableType(), id)
 				}
 			}
 		}
@@ -298,11 +324,11 @@ func autoLogAfterUpdate(db *gorm.DB) {
 			CreatedAt:    time.Now(),
 		}
 
-		// Use raw SQL to insert log to avoid association issues
-		if err := insertLogRaw(db, &log); err != nil {
-			fmt.Printf("❌ autoLogAfterUpdate: failed to create log for %s:%d: %v\n", obj.GetLoggableType(), id, err)
+		// Dispatch log job to queue instead of inserting directly
+		if err := dispatchLogJob(&log); err != nil {
+			fmt.Printf("❌ autoLogAfterUpdate: failed to dispatch log job for %s:%d: %v\n", obj.GetLoggableType(), id, err)
 		} else {
-			fmt.Printf("✅ autoLogAfterUpdate: successfully created log for %s:%d\n", obj.GetLoggableType(), id)
+			fmt.Printf("✅ autoLogAfterUpdate: successfully dispatched log job for %s:%d\n", obj.GetLoggableType(), id)
 		}
 	})
 
@@ -324,9 +350,9 @@ func autoLogAfterUpdate(db *gorm.DB) {
 				Metadata:     datatypes.JSON(meta),
 				CreatedAt:    time.Now(),
 			}
-			// Use raw SQL to insert log to avoid association issues
-			if err := insertLogRaw(db, &log); err != nil {
-				fmt.Printf("❌ autoLogAfterUpdate (map): failed to create log for coa_accounts:%d: %v\n", id, err)
+			// Dispatch log job to queue instead of inserting directly
+			if err := dispatchLogJob(&log); err != nil {
+				fmt.Printf("❌ autoLogAfterUpdate (map): failed to dispatch log job for coa_accounts:%d: %v\n", id, err)
 			}
 		}
 		db.InstanceSet("old_values", map[uint64]json.RawMessage{})
@@ -353,17 +379,46 @@ func autoLogDelete(db *gorm.DB) {
 			CreatedAt:    time.Now(),
 		}
 
-		// Use raw SQL to insert log to avoid association issues
-		if err := insertLogRaw(db, &log); err != nil {
-			fmt.Printf("❌ autoLogDelete: failed to create log for %s:%d: %v\n", obj.GetLoggableType(), id, err)
+		// Dispatch log job to queue instead of inserting directly
+		if err := dispatchLogJob(&log); err != nil {
+			fmt.Printf("❌ autoLogDelete: failed to dispatch log job for %s:%d: %v\n", obj.GetLoggableType(), id, err)
 		} else {
-			fmt.Printf("✅ autoLogDelete: successfully created log for %s:%d\n", obj.GetLoggableType(), id)
+			fmt.Printf("✅ autoLogDelete: successfully dispatched log job for %s:%d\n", obj.GetLoggableType(), id)
 		}
 	})
 }
 
 // -------------------- HELPERS --------------------
-// insertLogRaw inserts log using raw SQL to completely avoid GORM associations
+// dispatchLogJob dispatches log job to queue instead of inserting directly
+func dispatchLogJob(log *model.Log) error {
+	if globalDispatcher == nil {
+		// Fallback: if dispatcher is not available, skip logging
+		fmt.Printf("⚠️  [WARN] Dispatcher not available, skipping log for %s:%d\n", log.LoggableType, log.LoggableID)
+		return nil
+	}
+
+	job := jobs.NewLogJob(
+		log.LoggableID,
+		log.LoggableType,
+		log.Action,
+		log.OldValue,
+		log.NewValue,
+		log.Metadata,
+		log.CreatedBy,
+		log.CreatedAt,
+	)
+
+	err := globalDispatcher.Dispatch(job)
+	if err != nil {
+		fmt.Printf("❌ [ERROR] Failed to dispatch log job for %s:%d: %v\n", log.LoggableType, log.LoggableID, err)
+		return err
+	}
+	
+	fmt.Printf("✅ [DEBUG] Successfully dispatched log job for %s:%d to queue\n", log.LoggableType, log.LoggableID)
+	return nil
+}
+
+// insertLogRaw inserts log using raw SQL to completely avoid GORM associations (DEPRECATED: use dispatchLogJob instead)
 func insertLogRaw(db *gorm.DB, log *model.Log) error {
 	baseDB := db.Statement.DB
 	if baseDB == nil {
@@ -427,6 +482,21 @@ func insertLogRaw(db *gorm.DB, log *model.Log) error {
 }
 
 func iterateLoggable(dest interface{}, fn func(Loggable)) {
+	if dest == nil {
+		return
+	}
+
+	val := reflect.ValueOf(dest)
+	
+	// Handle pointer - dereference it first
+	if val.Kind() == reflect.Ptr {
+		if val.IsNil() {
+			return
+		}
+		val = val.Elem()
+		dest = val.Interface()
+	}
+
 	// Handle single object
 	if loggable, ok := dest.(Loggable); ok {
 		fn(loggable)
@@ -441,28 +511,38 @@ func iterateLoggable(dest interface{}, fn func(Loggable)) {
 		return
 	}
 
-	// Handle slice of pointers to Loggable
-	val := reflect.ValueOf(dest)
+	// Handle slice or array (including after dereferencing pointer to slice)
 	if val.Kind() == reflect.Slice || val.Kind() == reflect.Array {
 		for i := 0; i < val.Len(); i++ {
-			elem := val.Index(i).Interface()
-			if loggable, ok := elem.(Loggable); ok {
+			elem := val.Index(i)
+			
+			// Get the element as interface (could be pointer or value)
+			elemInterface := elem.Interface()
+			
+			// Try to cast as Loggable directly first
+			if loggable, ok := elemInterface.(Loggable); ok {
 				fn(loggable)
-			} else if loggablePtr, ok := elem.(*model.CoaAccount); ok {
-				fn(loggablePtr)
-			} else if loggablePtr, ok := elem.(*model.RuleValue); ok {
-				fn(loggablePtr)
+				continue
+			}
+			
+			// If element is a pointer, the Loggable check above should have caught it
+			// Only try specific types if the general Loggable check failed
+			if elem.Kind() == reflect.Ptr {
+				if elem.IsNil() {
+					continue
+				}
+				// These checks are redundant if Loggable check passed, but keep as fallback
+				// They should not execute if Loggable check above succeeded
+			} else {
+				// Element is a value, try to get pointer to it
+				if elem.CanAddr() {
+					if loggablePtr, ok := elem.Addr().Interface().(Loggable); ok {
+						fn(loggablePtr)
+					}
+				}
 			}
 		}
 		return
-	}
-
-	// Handle pointer to Loggable
-	if val.Kind() == reflect.Ptr {
-		elem := val.Elem().Interface()
-		if loggable, ok := elem.(Loggable); ok {
-			fn(loggable)
-		}
 	}
 }
 

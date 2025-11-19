@@ -21,7 +21,7 @@ func GetQueueConfig() *QueueConfig {
 	redisAddr := Reader().Get("REDIS_ADDR")
 	redisPassword := Reader().Get("REDIS_PASSWORD")
 	redisDB := getEnvAsInt("REDIS_DB", 0)
-	concurrency := getEnvAsInt("QUEUE_CONCURRENCY", 10)
+	concurrency := getEnvAsInt("QUEUE_CONCURRENCY", 100)
 	enableWorker := getEnvAsBool("QUEUE_WORKER_ENABLED", true)
 
 	// Cấu hình queues với priority
@@ -29,6 +29,7 @@ func GetQueueConfig() *QueueConfig {
 		"critical": getEnvAsInt("QUEUE_CRITICAL_WORKERS", 6),
 		"default":  getEnvAsInt("QUEUE_DEFAULT_WORKERS", 3),
 		"low":      getEnvAsInt("QUEUE_LOW_WORKERS", 1),
+		"logs":     getEnvAsInt("QUEUE_LOGS_WORKERS", 2), // Queue riêng cho logs
 	}
 
 	return &QueueConfig{
