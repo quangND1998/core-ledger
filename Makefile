@@ -11,5 +11,3 @@ migrate-up:
 migrate-down:
 	migrate -path $(MIGRATE_PATH) -database "postgres://$(PG_USER):$(PG_PASSWORD)@$(PG_HOST):$(PG_PORT)/$(PG_DB)?sslmode=$(PG_SSLMODE)" down
 
-migrate-force:
-	migrate -path $(MIGRATE_PATH) -database "postgres://$(PG_USER):$(PG_PASSWORD)@$(PG_HOST):$(PG_PORT)/$(PG_DB)?sslmode=$(PG_SSLMODE)" force 1

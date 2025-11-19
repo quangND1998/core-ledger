@@ -8,10 +8,14 @@ import (
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/middleware"
 	"core-ledger/internal/module/option"
+	"core-ledger/internal/module/permission"
+	"core-ledger/internal/module/role"
 	"core-ledger/internal/module/ruleCategory"
 	"core-ledger/internal/module/ruleValue"
 	"core-ledger/internal/module/transactions"
+	"core-ledger/internal/module/user"
 	"core-ledger/model/dto"
+	"core-ledger/pkg/repo"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +40,11 @@ type RouterParams struct {
 	RuleCategoryHandler *ruleCategory.RuleCategoryHandler
 	RuleValueHander     *ruleValue.RuleValueHandler
 	OptionHandler       *option.OptionHandler
+	PermissionHandler   *permission.PermissionHandler
+	RoleHandler         *role.RoleHandler
+	UserHandler         *user.UserHandler
+	AuthHandler         *user.AuthHandler
+	UserRepo            repo.UserRepo
 	// Add more handlers here as needed:
 	// UserHandler    *handler.UserHandler
 	// OrderHandler   *handler.OrderHandler
@@ -110,15 +119,27 @@ func SetupAllRoutes(params RouterParams) {
 
 	// Gọi SetupRoutes() từng module
 	// Without middleware:
+	userAuthMiddleware := user.UserAuthMiddleware(params.UserRepo)
 	transactions.SetupRoutes(protected, params.TransactionHandler)
 	excel.SetupRoutes(protected, params.ExcelHandler)
-	coaaccount.SetupRoutes(protected, params.CoaAccountHandler)
+	coaaccount.SetupRoutes(protected, params.CoaAccountHandler, userAuthMiddleware)
 	entries.SetupRoutes(protected, params.EntriesHandler)
 	ruleCategory.SetupRoutes(protected, params.RuleCategoryHandler)
 	ruleValue.SetupRoutes(protected, params.RuleValueHander)
 	option.SetupRoutes(protected, params.OptionHandler)
+	permission.SetupRoutes(protected, params.PermissionHandler, userAuthMiddleware)
+	role.SetupRoutes(protected, params.RoleHandler, userAuthMiddleware)
+
+	// Auth routes (public - no authentication required)
+	user.SetupAuthRoutes(protected, params.AuthHandler)
+
+	// User routes with authentication middleware
+
+	user.SetupRoutes(protected, params.UserHandler, userAuthMiddleware)
+
 	// With middleware (example):
 	// transactions.SetupRoutes(protected, params.TransactionHandler, transactions.AuthMiddleware(), transactions.LoggingMiddleware())
+	// permission.SetupRoutes(protected, params.PermissionHandler, middleware.AuthMiddleware(), middleware.PermissionMiddleware("manage-permissions", "web"))
 
 	// accounts.SetupRoutes(protected, params.AccountHandler)
 	// customers.SetupRoutes(protected, params.CustomerHandler)

@@ -21,5 +21,7 @@ var RepoModule = fx.Module("repo",
 		repo.NewRuleOptionRepo,
 		repo.NewRuleOptionStepRepo,
 		repo.NewRuleLayerRepo,
+		repo.NewPermissionRepo,
+		repo.NewRoleRepo,
 	),
 )

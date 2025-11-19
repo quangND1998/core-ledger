@@ -5,9 +5,12 @@ import (
 	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/option"
+	"core-ledger/internal/module/permission"
+	"core-ledger/internal/module/role"
 	"core-ledger/internal/module/ruleCategory"
 	"core-ledger/internal/module/ruleValue"
 	"core-ledger/internal/module/transactions"
+	"core-ledger/internal/module/user"
 
 	"go.uber.org/fx"
 	// ... import thêm các service khác
@@ -22,5 +25,8 @@ var ServiceModule = fx.Module("service",
 		ruleCategory.NewRuleCateogySerive,
 		ruleValue.NewRuleCateogySerive,
 		option.NewOptionsSerive,
+		permission.NewPermissionService,
+		role.NewRoleService,
+		user.NewUserService,
 	),
 )

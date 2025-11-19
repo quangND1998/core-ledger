@@ -1,12 +1,452 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type User struct {
-	ID          uint64 `gorm:"primaryKey"`
-	Email       string `gorm:"unique;not null"`
-	Password    string
-	FullName    string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	Entity
+	ID        uint64    `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
+	Email     string    `gorm:"type:varchar(255);unique;not null" json:"email"`
+	Password  string    `gorm:"type:varchar(255);not null" json:"-"`
+	FullName  string    `gorm:"type:varchar(255)" json:"full_name"`
+	GuardName string    `gorm:"type:varchar(50);default:'web'" json:"guard_name"`
+	CreatedAt time.Time `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+
+	// Relations
+	Roles       []Role       `gorm:"many2many:model_has_roles;joinForeignKey:model_id;joinReferences:role_id;polymorphic:model;polymorphicValue:User" json:"roles,omitempty"`
+	Permissions []Permission `gorm:"many2many:model_has_permissions;joinForeignKey:model_id;joinReferences:permission_id;polymorphic:model;polymorphicValue:User" json:"permissions,omitempty"`
+}
+
+func (u *User) TableName() string {
+	return "users"
+}
+
+// HasPermission checks if user has a specific permission (directly or via role)
+func (u *User) HasPermission(db *gorm.DB, permissionName string, guardName string) (bool, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	// Check direct permission
+	var directCount int64
+	err := db.Model(&ModelHasPermission{}).
+		Joins("JOIN permissions ON model_has_permissions.permission_id = permissions.id").
+		Where("model_has_permissions.model_id = ? AND model_has_permissions.model_type = ?", u.ID, "User").
+		Where("permissions.name = ? AND permissions.guard_name = ?", permissionName, guardName).
+		Count(&directCount).Error
+	if err != nil {
+		return false, err
+	}
+	if directCount > 0 {
+		return true, nil
+	}
+
+	// Check via role
+	var roleCount int64
+	err = db.Model(&ModelHasRole{}).
+		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
+		Joins("JOIN role_has_permissions ON roles.id = role_has_permissions.role_id").
+		Joins("JOIN permissions ON role_has_permissions.permission_id = permissions.id").
+		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
+		Where("roles.guard_name = ?", guardName).
+		Where("permissions.name = ? AND permissions.guard_name = ?", permissionName, guardName).
+		Count(&roleCount).Error
+	if err != nil {
+		return false, err
+	}
+
+	return roleCount > 0, nil
+}
+
+// HasAnyPermission checks if user has any of the specified permissions
+func (u *User) HasAnyPermission(db *gorm.DB, permissionNames []string, guardName string) (bool, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	// Check direct permissions
+	var directCount int64
+	err := db.Model(&ModelHasPermission{}).
+		Joins("JOIN permissions ON model_has_permissions.permission_id = permissions.id").
+		Where("model_has_permissions.model_id = ? AND model_has_permissions.model_type = ?", u.ID, "User").
+		Where("permissions.name IN ? AND permissions.guard_name = ?", permissionNames, guardName).
+		Count(&directCount).Error
+	if err != nil {
+		return false, err
+	}
+	if directCount > 0 {
+		return true, nil
+	}
+
+	// Check via roles
+	var roleCount int64
+	err = db.Model(&ModelHasRole{}).
+		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
+		Joins("JOIN role_has_permissions ON roles.id = role_has_permissions.role_id").
+		Joins("JOIN permissions ON role_has_permissions.permission_id = permissions.id").
+		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
+		Where("roles.guard_name = ?", guardName).
+		Where("permissions.name IN ? AND permissions.guard_name = ?", permissionNames, guardName).
+		Count(&roleCount).Error
+	if err != nil {
+		return false, err
+	}
+
+	return roleCount > 0, nil
+}
+
+// HasAllPermissions checks if user has all of the specified permissions
+func (u *User) HasAllPermissions(db *gorm.DB, permissionNames []string, guardName string) (bool, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	// Get all permissions user has (direct + via roles)
+	allPermissions, err := u.GetAllPermissions(db, guardName)
+	if err != nil {
+		return false, err
+	}
+
+	// Create a map for quick lookup
+	permMap := make(map[string]bool)
+	for _, perm := range allPermissions {
+		permMap[perm.Name] = true
+	}
+
+	// Check if user has all required permissions
+	for _, permName := range permissionNames {
+		if !permMap[permName] {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
+// GetAllPermissions returns all permissions user has (direct + via roles)
+func (u *User) GetAllPermissions(db *gorm.DB, guardName string) ([]Permission, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var permissions []Permission
+
+	// Get direct permissions
+	var directPerms []Permission
+	err := db.Model(&ModelHasPermission{}).
+		Joins("JOIN permissions ON model_has_permissions.permission_id = permissions.id").
+		Where("model_has_permissions.model_id = ? AND model_has_permissions.model_type = ?", u.ID, "User").
+		Where("permissions.guard_name = ?", guardName).
+		Select("permissions.*").
+		Find(&directPerms).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Get permissions via roles
+	var rolePerms []Permission
+	err = db.Model(&ModelHasRole{}).
+		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
+		Joins("JOIN role_has_permissions ON roles.id = role_has_permissions.role_id").
+		Joins("JOIN permissions ON role_has_permissions.permission_id = permissions.id").
+		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
+		Where("roles.guard_name = ?", guardName).
+		Where("permissions.guard_name = ?", guardName).
+		Select("DISTINCT permissions.*").
+		Find(&rolePerms).Error
+	if err != nil {
+		return nil, err
+	}
+
+	// Combine and deduplicate
+	permMap := make(map[uint64]Permission)
+	for _, perm := range directPerms {
+		permMap[perm.ID] = perm
+	}
+	for _, perm := range rolePerms {
+		permMap[perm.ID] = perm
+	}
+
+	permissions = make([]Permission, 0, len(permMap))
+	for _, perm := range permMap {
+		permissions = append(permissions, perm)
+	}
+
+	return permissions, nil
+}
+
+// GetRoleNames returns all role names user has
+func (u *User) GetRoleNames(db *gorm.DB, guardName string) ([]string, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var roleNames []string
+	err := db.Model(&ModelHasRole{}).
+		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
+		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
+		Where("roles.guard_name = ?", guardName).
+		Pluck("roles.name", &roleNames).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return roleNames, nil
+}
+
+// GetPermissionNames returns direct permission names user has (not via roles)
+func (u *User) GetPermissionNames(db *gorm.DB, guardName string) ([]string, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var permissionNames []string
+	err := db.Model(&ModelHasPermission{}).
+		Joins("JOIN permissions ON model_has_permissions.permission_id = permissions.id").
+		Where("model_has_permissions.model_id = ? AND model_has_permissions.model_type = ?", u.ID, "User").
+		Where("permissions.guard_name = ?", guardName).
+		Pluck("permissions.name", &permissionNames).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return permissionNames, nil
+}
+
+// HasRole checks if user has a specific role
+func (u *User) HasRole(db *gorm.DB, roleName string, guardName string) (bool, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var count int64
+	err := db.Model(&ModelHasRole{}).
+		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
+		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
+		Where("roles.name = ? AND roles.guard_name = ?", roleName, guardName).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+// HasAnyRole checks if user has any of the specified roles
+func (u *User) HasAnyRole(db *gorm.DB, roleNames []string, guardName string) (bool, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var count int64
+	err := db.Model(&ModelHasRole{}).
+		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
+		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
+		Where("roles.name IN ? AND roles.guard_name = ?", roleNames, guardName).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+// HasAllRoles checks if user has all of the specified roles
+func (u *User) HasAllRoles(db *gorm.DB, roleNames []string, guardName string) (bool, error) {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var count int64
+	err := db.Model(&ModelHasRole{}).
+		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
+		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
+		Where("roles.name IN ? AND roles.guard_name = ?", roleNames, guardName).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+
+	return int64(len(roleNames)) == count, nil
+}
+
+// GivePermissionTo assigns a permission directly to user
+func (u *User) GivePermissionTo(db *gorm.DB, permissionName string, guardName string) error {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	// Find or create permission
+	var permission Permission
+	err := db.Where("name = ? AND guard_name = ?", permissionName, guardName).FirstOrCreate(&permission, Permission{
+		Name:      permissionName,
+		GuardName: guardName,
+	}).Error
+	if err != nil {
+		return err
+	}
+
+	// Check if already assigned
+	var existing ModelHasPermission
+	err = db.Where("permission_id = ? AND model_id = ? AND model_type = ?", permission.ID, u.ID, "User").
+		First(&existing).Error
+	if err == nil {
+		// Already assigned
+		return nil
+	}
+	if err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	// Assign permission
+	modelHasPermission := ModelHasPermission{
+		PermissionID: permission.ID,
+		ModelID:     u.ID,
+		ModelType:   "User",
+	}
+	return db.Create(&modelHasPermission).Error
+}
+
+// RevokePermissionTo removes a permission from user
+func (u *User) RevokePermissionTo(db *gorm.DB, permissionName string, guardName string) error {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var permission Permission
+	err := db.Where("name = ? AND guard_name = ?", permissionName, guardName).First(&permission).Error
+	if err != nil {
+		return err
+	}
+
+	return db.Where("permission_id = ? AND model_id = ? AND model_type = ?", permission.ID, u.ID, "User").
+		Delete(&ModelHasPermission{}).Error
+}
+
+// AssignRole assigns a role to user
+func (u *User) AssignRole(db *gorm.DB, roleName string, guardName string) error {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	// Find or create role
+	var role Role
+	err := db.Where("name = ? AND guard_name = ?", roleName, guardName).FirstOrCreate(&role, Role{
+		Name:      roleName,
+		GuardName: guardName,
+	}).Error
+	if err != nil {
+		return err
+	}
+
+	// Check if already assigned
+	var existing ModelHasRole
+	err = db.Where("role_id = ? AND model_id = ? AND model_type = ?", role.ID, u.ID, "User").
+		First(&existing).Error
+	if err == nil {
+		// Already assigned
+		return nil
+	}
+	if err != gorm.ErrRecordNotFound {
+		return err
+	}
+
+	// Assign role
+	modelHasRole := ModelHasRole{
+		RoleID:   role.ID,
+		ModelID:  u.ID,
+		ModelType: "User",
+	}
+	return db.Create(&modelHasRole).Error
+}
+
+// RemoveRole removes a role from user
+func (u *User) RemoveRole(db *gorm.DB, roleName string, guardName string) error {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var role Role
+	err := db.Where("name = ? AND guard_name = ?", roleName, guardName).First(&role).Error
+	if err != nil {
+		return err
+	}
+
+	return db.Where("role_id = ? AND model_id = ? AND model_type = ?", role.ID, u.ID, "User").
+		Delete(&ModelHasRole{}).Error
+}
+
+// SyncPermissions syncs user permissions (removes all and assigns new ones)
+func (u *User) SyncPermissions(db *gorm.DB, permissionNames []string, guardName string) error {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	// Remove all existing permissions
+	err := db.Where("model_id = ? AND model_type = ?", u.ID, "User").
+		Delete(&ModelHasPermission{}).Error
+	if err != nil {
+		return err
+	}
+
+	// Assign new permissions
+	for _, permName := range permissionNames {
+		if err := u.GivePermissionTo(db, permName, guardName); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SyncRoles syncs user roles (removes all and assigns new ones)
+func (u *User) SyncRoles(db *gorm.DB, roleNames []string, guardName string) error {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	// Remove all existing roles
+	err := db.Where("model_id = ? AND model_type = ?", u.ID, "User").
+		Delete(&ModelHasRole{}).Error
+	if err != nil {
+		return err
+	}
+
+	// Assign new roles
+	for _, roleName := range roleNames {
+		if err := u.AssignRole(db, roleName, guardName); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SyncRolesByIDs syncs user roles by role IDs (removes all and assigns new ones)
+func (u *User) SyncRolesByIDs(db *gorm.DB, roleIDs []uint64) error {
+	// Remove all existing roles
+	err := db.Where("model_id = ? AND model_type = ?", u.ID, "User").
+		Delete(&ModelHasRole{}).Error
+	if err != nil {
+		return err
+	}
+
+	// Assign new roles by IDs
+	if len(roleIDs) > 0 {
+		modelHasRoles := make([]ModelHasRole, 0, len(roleIDs))
+		for _, roleID := range roleIDs {
+			modelHasRoles = append(modelHasRoles, ModelHasRole{
+				RoleID:   roleID,
+				ModelID:  u.ID,
+				ModelType: "User",
+			})
+		}
+		return db.Create(&modelHasRoles).Error
+	}
+
+	return nil
 }

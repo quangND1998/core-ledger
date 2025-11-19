@@ -9,9 +9,12 @@ import (
 	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/option"
+	"core-ledger/internal/module/permission"
+	"core-ledger/internal/module/role"
 	"core-ledger/internal/module/ruleCategory"
 	"core-ledger/internal/module/ruleValue"
 	"core-ledger/internal/module/transactions"
+	"core-ledger/internal/module/user"
 
 	"go.uber.org/fx"
 )
@@ -25,6 +28,10 @@ var HandlerModule = fx.Module("handler",
 		ruleCategory.NewRuleCategoryHandler,
 		ruleValue.NewRuleValueHandler,
 		option.NewOptionHandler,
+		permission.NewPermissionHandler,
+		role.NewRoleHandler,
+		user.NewUserHandler,
+		user.NewAuthHandler,
 	// accounthandler.NewAccountHandler,
 	// authhandler.NewHandler,
 	// wallets.NewWalletHandler,
