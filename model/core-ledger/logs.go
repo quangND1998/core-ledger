@@ -20,3 +20,7 @@ type Log struct {
 	CreatedBy *uint64   `json:"created_by,omitempty"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
+
+func (Log) TableName() string {
+	return "logs"
+}
