@@ -2,7 +2,6 @@ package database
 
 import (
 	config "core-ledger/configs"
-	"core-ledger/internal/logging"
 	"fmt"
 	"sync"
 	"time"
@@ -115,7 +114,7 @@ func Instance() *gorm.DB {
 		}
 
 		instance = db
-		logging.RegisterCallbacks(db)
+		// logging.RegisterCallbacks(db)
 		fmt.Println("✅ Database connected successfully")
 
 	})

@@ -18,7 +18,7 @@ func NewService(db *gorm.DB) *Service {
 	return &Service{db: db}
 }
 
-// ------------------ Public CreateLog ------------------
+// -------------------- MANUAL CREATE LOG --------------------
 func (s *Service) CreateLog(obj Loggable, action string, oldVal, newVal any, createdBy *uint64, metadata any) error {
 	oldJSON, _ := json.Marshal(oldVal)
 	newJSON, _ := json.Marshal(newVal)
@@ -32,12 +32,13 @@ func (s *Service) CreateLog(obj Loggable, action string, oldVal, newVal any, cre
 		NewValue:     datatypes.JSON(newJSON),
 		Metadata:     datatypes.JSON(metaJSON),
 		CreatedBy:    createdBy,
+		CreatedAt:    time.Now(),
 	}
 
 	return s.db.Create(&log).Error
 }
 
-// ------------------ Register Callbacks ------------------
+// -------------------- REGISTER CALLBACKS --------------------
 func RegisterCallbacks(db *gorm.DB) {
 	db.Callback().Create().After("gorm:after_create").Register("auto_log_create", autoLogCreate)
 	db.Callback().Update().Before("gorm:before_update").Register("auto_log_before_update", autoLogBeforeUpdate)
@@ -45,7 +46,7 @@ func RegisterCallbacks(db *gorm.DB) {
 	db.Callback().Delete().After("gorm:after_delete").Register("auto_log_delete", autoLogDelete)
 }
 
-// ------------------ CREATE ------------------
+// -------------------- CREATE CALLBACK --------------------
 func autoLogCreate(db *gorm.DB) {
 	iterateLoggable(db.Statement.Dest, func(obj Loggable) {
 		if !shouldLog(obj) {
@@ -66,117 +67,79 @@ func autoLogCreate(db *gorm.DB) {
 			CreatedAt:    time.Now(),
 		}
 
-		// Tạo log trên session mới, skip hooks để tránh recursion
-		if err := db.Session(&gorm.Session{NewDB: true, SkipHooks: true}).Create(&log).Error; err != nil {
+		// Use a separate DB session to avoid invalid transaction
+		tx := db.Session(&gorm.Session{NewDB: true})
+		if err := tx.Create(&log).Error; err != nil {
 			fmt.Printf("autoLogCreate: failed to create log for %s:%d: %v\n", obj.GetLoggableType(), id, err)
 		}
 	})
 }
 
-// ------------------ BEFORE UPDATE ------------------
+// -------------------- BEFORE UPDATE CALLBACK --------------------
 func autoLogBeforeUpdate(db *gorm.DB) {
+	oldMap := map[uint64]json.RawMessage{}
+
+	// Struct update
 	iterateLoggable(db.Statement.Dest, func(obj Loggable) {
 		if !shouldLog(obj) {
 			return
 		}
-
 		id := obj.GetLoggableID()
 		if id == 0 {
 			return
 		}
 
-		var old interface{}
-		switch obj.(type) {
-		case *model.CoaAccount:
-			old = &model.CoaAccount{}
-		default:
+		oldStruct := cloneEmpty(obj)
+		if oldStruct == nil {
 			return
 		}
 
-		if err := db.First(old, id).Error; err != nil {
+		if err := db.First(oldStruct, id).Error; err != nil {
 			return
 		}
 
-		oldJSON, _ := json.Marshal(old)
-		var oldMap map[uint64]json.RawMessage
-		if v, ok := db.InstanceGet("old_values"); ok {
-			if m, ok2 := v.(map[uint64]json.RawMessage); ok2 {
-				oldMap = m
-			}
-		}
-		if oldMap == nil {
-			oldMap = map[uint64]json.RawMessage{}
-		}
+		oldJSON, _ := json.Marshal(oldStruct)
 		oldMap[id] = oldJSON
-		db.InstanceSet("old_values", oldMap)
 	})
 
-	// Map update handling
+	// Map update
 	if m, ok := db.Statement.Dest.(map[string]interface{}); ok {
-		if idVal, hasID := m["id"]; hasID {
-			var id uint64
-			switch v := idVal.(type) {
-			case uint64:
-				id = v
-			case int:
-				id = uint64(v)
-			case int64:
-				id = uint64(v)
-			default:
-				return
-			}
-			if id == 0 {
-				return
-			}
-
-			var old model.CoaAccount
-			if err := db.First(&old, id).Error; err != nil {
-				return
-			}
-
-			oldJSON, _ := json.Marshal(old)
-			var oldMap map[uint64]json.RawMessage
-			if v, ok := db.InstanceGet("old_values"); ok {
-				if m, ok2 := v.(map[uint64]json.RawMessage); ok2 {
-					oldMap = m
+		if idVal, exists := m["id"]; exists {
+			if id := convertToUint64(idVal); id != 0 {
+				var old model.CoaAccount
+				if err := db.First(&old, id).Error; err == nil {
+					oldJSON, _ := json.Marshal(old)
+					oldMap[id] = oldJSON
 				}
 			}
-			if oldMap == nil {
-				oldMap = map[uint64]json.RawMessage{}
-			}
-			oldMap[id] = oldJSON
-			db.InstanceSet("old_values", oldMap)
 		}
 	}
+
+	db.InstanceSet("old_values", oldMap)
 }
 
-// ------------------ AFTER UPDATE ------------------
+// -------------------- AFTER UPDATE CALLBACK --------------------
 func autoLogAfterUpdate(db *gorm.DB) {
+	oldMap, _ := db.InstanceGet("old_values")
+	oldMapTyped, _ := oldMap.(map[uint64]json.RawMessage)
+
 	iterateLoggable(db.Statement.Dest, func(obj Loggable) {
 		if !shouldLog(obj) {
 			return
 		}
-
 		id := obj.GetLoggableID()
 		if id == 0 {
 			return
-		}
-
-		var oldJSON json.RawMessage
-		if v, ok := db.InstanceGet("old_values"); ok {
-			if m, ok2 := v.(map[uint64]json.RawMessage); ok2 {
-				oldJSON = m[id]
-				delete(m, id)
-				db.InstanceSet("old_values", m)
-			}
 		}
 
 		newJSON, _ := json.Marshal(obj)
-		meta := map[string]any{}
-		if v, ok := db.Statement.Context.Value("log_metadata").(map[string]any); ok {
-			meta = v
+		var oldJSON json.RawMessage
+		if oldMapTyped != nil {
+			oldJSON = oldMapTyped[id]
+			delete(oldMapTyped, id)
 		}
-		metaJSON, _ := json.Marshal(meta)
+
+		meta := getMetadataFromContext(db)
 
 		log := model.Log{
 			LoggableID:   id,
@@ -184,77 +147,47 @@ func autoLogAfterUpdate(db *gorm.DB) {
 			Action:       "UPDATED",
 			OldValue:     datatypes.JSON(oldJSON),
 			NewValue:     datatypes.JSON(newJSON),
-			Metadata:     datatypes.JSON(metaJSON),
+			Metadata:     datatypes.JSON(meta),
 			CreatedAt:    time.Now(),
 		}
 
-		if err := db.Session(&gorm.Session{NewDB: true, SkipHooks: true}).Create(&log).Error; err != nil {
+		tx := db.Session(&gorm.Session{NewDB: true})
+		if err := tx.Create(&log).Error; err != nil {
 			fmt.Printf("autoLogAfterUpdate: failed to create log for %s:%d: %v\n", obj.GetLoggableType(), id, err)
 		}
 	})
 
-	// Map update case
-	if m, ok := db.Statement.Dest.(map[string]interface{}); ok {
-		if idVal, hasID := m["id"]; hasID {
-			var id uint64
-			switch v := idVal.(type) {
-			case uint64:
-				id = v
-			case int:
-				id = uint64(v)
-			case int64:
-				id = uint64(v)
-			default:
-				return
-			}
-			if id == 0 {
-				return
-			}
-
+	// Map update case: log remaining old_values
+	if oldMapTyped != nil {
+		for id, oldJSON := range oldMapTyped {
 			var newObj model.CoaAccount
 			if err := db.First(&newObj, id).Error; err != nil {
-				return
+				continue
 			}
-
-			var oldJSON json.RawMessage
-			if v, ok := db.InstanceGet("old_values"); ok {
-				if m, ok2 := v.(map[uint64]json.RawMessage); ok2 {
-					oldJSON = m[id]
-					delete(m, id)
-					db.InstanceSet("old_values", m)
-				}
-			}
-
 			newJSON, _ := json.Marshal(newObj)
-			meta := map[string]any{}
-			if v, ok := db.Statement.Context.Value("log_metadata").(map[string]any); ok {
-				meta = v
-			}
-			metaJSON, _ := json.Marshal(meta)
-
+			meta := getMetadataFromContext(db)
 			log := model.Log{
 				LoggableID:   id,
 				LoggableType: "coa_accounts",
 				Action:       "UPDATED",
 				OldValue:     datatypes.JSON(oldJSON),
 				NewValue:     datatypes.JSON(newJSON),
-				Metadata:     datatypes.JSON(metaJSON),
+				Metadata:     datatypes.JSON(meta),
 				CreatedAt:    time.Now(),
 			}
-			if err := db.Session(&gorm.Session{NewDB: true, SkipHooks: true}).Create(&log).Error; err != nil {
-				fmt.Printf("autoLogAfterUpdate(map): failed to create log for %s:%d: %v\n", "coa_accounts", id, err)
-			}
+			tx := db.Session(&gorm.Session{NewDB: true})
+			_ = tx.Create(&log).Error
 		}
+		db.InstanceSet("old_values", map[uint64]json.RawMessage{})
 	}
 }
 
-// ------------------ DELETE ------------------
+// -------------------- DELETE CALLBACK --------------------
 func autoLogDelete(db *gorm.DB) {
 	iterateLoggable(db.Statement.Dest, func(obj Loggable) {
 		if !shouldLog(obj) {
 			return
 		}
-
 		id := obj.GetLoggableID()
 		if id == 0 {
 			return
@@ -269,13 +202,12 @@ func autoLogDelete(db *gorm.DB) {
 			CreatedAt:    time.Now(),
 		}
 
-		if err := db.Session(&gorm.Session{NewDB: true, SkipHooks: true}).Create(&log).Error; err != nil {
-			fmt.Printf("autoLogDelete: failed to create log for %s:%d: %v\n", obj.GetLoggableType(), id, err)
-		}
+		tx := db.Session(&gorm.Session{NewDB: true})
+		_ = tx.Create(&log).Error
 	})
 }
 
-// ------------------ Helpers ------------------
+// -------------------- HELPERS --------------------
 func iterateLoggable(dest interface{}, fn func(Loggable)) {
 	switch v := dest.(type) {
 	case Loggable:
@@ -291,13 +223,44 @@ func iterateLoggable(dest interface{}, fn func(Loggable)) {
 	}
 }
 
-// chỉ log các model cần thiết, chặn bảng log để tránh recursion
 func shouldLog(obj Loggable) bool {
 	switch obj.(type) {
 	case *model.CoaAccount:
 		return true
-
 	default:
 		return false
 	}
+}
+
+func cloneEmpty(obj Loggable) interface{} {
+	switch obj.(type) {
+	case *model.CoaAccount:
+		return &model.CoaAccount{}
+	default:
+		return nil
+	}
+}
+
+func convertToUint64(val interface{}) uint64 {
+	switch v := val.(type) {
+	case uint64:
+		return v
+	case int:
+		return uint64(v)
+	case int64:
+		return uint64(v)
+	default:
+		return 0
+	}
+}
+
+func getMetadataFromContext(db *gorm.DB) json.RawMessage {
+	meta := map[string]any{}
+	if v := db.Statement.Context.Value("log_metadata"); v != nil {
+		if m, ok := v.(map[string]any); ok {
+			meta = m
+		}
+	}
+	metaJSON, _ := json.Marshal(meta)
+	return metaJSON
 }
