@@ -242,14 +242,27 @@ func (h *OptionHandler) GetFullRuleData(c *gin.Context) {
 						InputType: s.InputType,
 					}
 
+					// Lấy separator từ step metadata trước (ưu tiên cao nhất)
+					// Nếu separator là "" thì vẫn dùng "", chỉ fallback khi key không tồn tại
+					stepSeparator := ""
+					hasStepSeparator := false
+					if s.Metadata != nil {
+						if sep, ok := s.Metadata["separator"].(string); ok {
+							stepSeparator = sep
+							hasStepSeparator = true
+						}
+					}
+					
 					// dropdown
 					if s.CategoryID != nil {
 						cat := categoryMap[*s.CategoryID]
 						stepResp.Type = s.InputType
 						stepResp.CategoryCode = cat.Code
 						stepResp.Values = valueMap[uint64(cat.ID)]
-						// Lấy separator từ category metadata, nếu không có thì từ layer của group
-						if sep, ok := getSeparatorFromCategory(*s.CategoryID); ok {
+						// Ưu tiên: step metadata (kể cả "") > category metadata > layer separator
+						if hasStepSeparator {
+							stepResp.Separator = stepSeparator
+						} else if sep, ok := getSeparatorFromCategory(*s.CategoryID); ok {
 							stepResp.Separator = sep
 						} else {
 							// Fallback to group's layer separator
@@ -260,8 +273,13 @@ func (h *OptionHandler) GetFullRuleData(c *gin.Context) {
 					// input
 					if s.CategoryID == nil && s.InputCode != nil {
 						stepResp.Type = s.InputType
-						// Lấy separator từ layer của group (vì input tự do thuộc về layer của option cha)
-						stepResp.Separator = getSeparatorFromLayer(g.LayerID)
+						// Ưu tiên: step metadata (kể cả "") > layer separator
+						if hasStepSeparator {
+							stepResp.Separator = stepSeparator
+						} else {
+							// Fallback to group's layer separator
+							stepResp.Separator = getSeparatorFromLayer(g.LayerID)
+						}
 					}
 
 					steps = append(steps, stepResp)

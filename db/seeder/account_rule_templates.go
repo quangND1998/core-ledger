@@ -154,33 +154,41 @@ func SeederAccountRuleTemplates(db *gorm.DB) error {
 
 	stepDefs := map[string][]stepDefinition{
 		"GROUP:ASSET:FLOAT": {
-			{CategoryCode: "CURRENCY"},
-			{CategoryCode: "PROVIDER"},
-			{InputCode: "DETAILS", InputLabel: "Details", InputType: "TEXT"},
+			// ASSET:FLOAT:VND:YOOBIL.SUB.MUCHCARE hoặc ASSET:FLOAT:VND.NEOPAY.SUB.THEHUMAN
+			// CURRENCY có thể dùng : hoặc . tùy vào PROVIDER, nhưng thường dùng . cho đơn giản
+			{CategoryCode: "CURRENCY", Separator: "."},
+			{CategoryCode: "PROVIDER", Separator: "."},
+			{InputCode: "DETAILS", InputLabel: "Details", InputType: "TEXT", Separator: "."},
 		},
 		"GROUP:ASSET:BANK": {
-			{CategoryCode: "CURRENCY"},
-			{CategoryCode: "BANK_NAME"},
-			{InputCode: "DETAILS", InputLabel: "Details", InputType: "TEXT"},
+			// ASSET:BANK:VND.ACB.44245237
+			{CategoryCode: "CURRENCY", Separator: "."},
+			{CategoryCode: "BANK_NAME", Separator: "."},
+			{InputCode: "DETAILS", InputLabel: "Details", InputType: "TEXT", Separator: "."},
 		},
 		"GROUP:ASSET:CUSTODY": {
-			{CategoryCode: "CURRENCY"},
-			{InputCode: "DETAILS", InputLabel: "Details", InputType: "TEXT"},
-			{CategoryCode: "NETWORK"},
+			// ASSET:CUSTODY:USDC.PSTNET hoặc ASSET:CUSTODY:USDT.CONGTY.ETH
+			{CategoryCode: "CURRENCY", Separator: "."},
+			{InputCode: "DETAILS", InputLabel: "Details", InputType: "TEXT", Separator: "."},
+			{CategoryCode: "NETWORK", Separator: "."},
 		},
 		"GROUP:ASSET:CLEARING": {
-			{CategoryCode: "CURRENCY"},
+			// ASSET:CLEARING.USDT hoặc ASSET:CLEARING.USD
+			{CategoryCode: "CURRENCY", Separator: "."},
 		},
 		"GROUP:LIAB:DETAILS": {
-			{CategoryCode: "CURRENCY"},
+			// LIAB:USER:VND
+			{CategoryCode: "CURRENCY", Separator: "."},
 		},
 		"GROUP:REV:KIND": {
-			{CategoryCode: "KINDS_OF_REVENUE"},
-			{CategoryCode: "CURRENCY"},
+			// REV:FEE_INCOME.VND
+			{CategoryCode: "KINDS_OF_REVENUE", Separator: "."},
+			{CategoryCode: "CURRENCY", Separator: "."},
 		},
 		"GROUP:EXP:KIND": {
-			{CategoryCode: "KINDS_OF_EXPENSE"},
-			{CategoryCode: "CURRENCY"},
+			// EXP:FEE_OPENCARD.USD
+			{CategoryCode: "KINDS_OF_EXPENSE", Separator: "."},
+			{CategoryCode: "CURRENCY", Separator: "."},
 		},
 	}
 
@@ -295,6 +303,7 @@ type stepDefinition struct {
 	InputCode    string
 	InputLabel   string
 	InputType    string
+	Separator    string // Separator sau giá trị của step này
 }
 
 func replaceOptionSteps(db *gorm.DB, optionID uint64, defs []stepDefinition, categoryMap map[string]uint64) error {
@@ -306,6 +315,14 @@ func replaceOptionSteps(db *gorm.DB, optionID uint64, defs []stepDefinition, cat
 			OptionID:  optionID,
 			StepOrder: idx + 1,
 		}
+		
+		// Khởi tạo metadata với separator nếu có
+		if def.Separator != "" {
+			step.Metadata = datatypes.JSONMap{
+				"separator": def.Separator,
+			}
+		}
+		
 		if def.CategoryCode != "" {
 			catID, ok := categoryMap[def.CategoryCode]
 			if !ok {
