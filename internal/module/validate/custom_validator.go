@@ -141,7 +141,17 @@ func ValidationErrorMessage(fe validator.FieldError) string {
 		return field + " must be of type " + fe.Param()
 	case "unique_ruleCode":
 		return field + " is already in use"
+	case "oneof":
+		return field + " must be one of " + fe.Param()
 	default:
 		return field + " is invalid"
 	}
+}
+
+// ValidateStruct validates a struct using gin binding validator
+func ValidateStruct(s interface{}) error {
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		return v.Struct(s)
+	}
+	return binding.Validator.ValidateStruct(s)
 }

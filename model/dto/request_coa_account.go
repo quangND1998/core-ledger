@@ -1,9 +1,9 @@
 package dto
 
 import (
+	model "core-ledger/model/core-ledger"
 	"encoding/json"
 	"fmt"
-	model "core-ledger/model/core-ledger"
 	"time"
 
 	"gorm.io/datatypes"
@@ -12,12 +12,29 @@ import (
 // RequestCoaAccountCreateRequest DTO for creating a request
 type RequestCoaAccountCreateRequest struct {
 	RequestType model.RequestType `json:"request_type" binding:"required,oneof=CREATE EDIT"`
-	AccountData *CoaAccountData  `json:"account_data" binding:"required"`
+	AccountData *CoaAccountData   `json:"account_data" binding:"required"`
+}
+
+// RequestCoaAccountCreateRequestWithValidation DTO for creating CREATE request with validation
+type RequestCoaAccountCreateRequestWithValidation struct {
+	RequestType model.RequestType    `json:"request_type" binding:"required,eq=CREATE"`
+	AccountData CoaAccountDataCreate `json:"account_data" binding:"required"`
+}
+
+// RequestCoaAccountEditRequestWithValidation DTO for creating EDIT request with validation
+type RequestCoaAccountEditRequestWithValidation struct {
+	RequestType model.RequestType  `json:"request_type" binding:"required,eq=EDIT"`
+	AccountData CoaAccountDataEdit `json:"account_data" binding:"required"`
 }
 
 // RequestCoaAccountUpdateRequest DTO for updating a rejected request
 type RequestCoaAccountUpdateRequest struct {
 	AccountData *CoaAccountData `json:"account_data" binding:"required"`
+}
+
+// RequestCoaAccountUpdateRequestWithValidation DTO for updating a rejected request with validation
+type RequestCoaAccountUpdateRequestWithValidation struct {
+	AccountData CoaAccountDataEdit `json:"account_data" binding:"required"`
 }
 
 // RequestCoaAccountApproveRequest DTO for approving a request
@@ -35,18 +52,44 @@ type RequestCoaAccountRejectRequest struct {
 // For EDIT: only AccountNo, Status, and Description are allowed to be changed
 type CoaAccountData struct {
 	// Fields for CREATE (required)
-	Code      string  `json:"code,omitempty"`      // Required for CREATE
+	Code      string  `json:"code,omitempty" ` // Required for CREATE
 	AccountNo string  `json:"account_no" binding:"required"`
-	Name      string  `json:"name,omitempty"`       // Required for CREATE
-	Type      string  `json:"type,omitempty"`       // Required for CREATE
-	Currency  string  `json:"currency,omitempty"`   // Required for CREATE
+	Name      string  `json:"name,omitempty"`     // Required for CREATE
+	Type      string  `json:"type,omitempty"`     // Required for CREATE
+	Currency  string  `json:"currency,omitempty"` // Required for CREATE
 	ParentID  *uint64 `json:"parent_id,omitempty"`
 	Provider  *string `json:"provider,omitempty"`
 	Network   *string `json:"network,omitempty"`
-	
+
 	// Fields for EDIT (allowed to change)
 	Status      string  `json:"status,omitempty"`      // Allowed for EDIT
 	Description *string `json:"description,omitempty"` // Allowed for EDIT (stored in metadata)
+}
+
+// CoaAccountDataCreate represents the account data for CREATE request with validation
+type CoaAccountDataCreate struct {
+	// Fields for CREATE (required)
+	Code      string  `json:"code" binding:"required"`                                 // Required for CREATE
+	AccountNo string  `json:"account_no" binding:"required"`                           // Required for CREATE
+	Name      string  `json:"name" binding:"required"`                                 // Required for CREATE
+	Type      string  `json:"type" binding:"required,oneof=ASSET LIAB EQUITY REV EXP"` // Required for CREATE, must be one of: ASSET, LIAB, EQUITY, REV, EXP
+	Currency  string  `json:"currency" binding:"required"`                             // Required for CREATE
+	ParentID  *uint64 `json:"parent_id,omitempty"`
+	Provider  *string `json:"provider,omitempty"`
+	Network   *string `json:"network,omitempty"`
+
+	// Fields for EDIT (allowed to change)
+	Status      string  `json:"status" binding:"required"` // Required for CREATE
+	Description *string `json:"description,omitempty"`     // Allowed for CREATE (stored in metadata)
+}
+
+// CoaAccountDataEdit represents the account data for EDIT request with validation
+type CoaAccountDataEdit struct {
+	// Fields for EDIT (allowed to change)
+	AccountId   uint64  `json:"account_id" binding:"required"` // Required for EDIT
+	AccountNo   string  `json:"account_no" binding:"required"` // Required for EDIT
+	Status      string  `json:"status" binding:"required"`     // Required for EDIT
+	Description *string `json:"description,omitempty"`         // Allowed for EDIT (stored in metadata)
 }
 
 // ListRequestCoaAccountFilter filter for listing requests
@@ -74,11 +117,11 @@ type RequestCoaAccountResponse struct {
 	CreatedAt     time.Time              `json:"created_at"`
 	UpdatedAt     time.Time              `json:"updated_at"`
 	CheckedAt     *time.Time             `json:"checked_at,omitempty"`
-	
+
 	// Relations
 	CoaAccount *model.CoaAccount `json:"coa_account,omitempty"`
-	Maker      *model.User        `json:"maker,omitempty"`
-	Checker    *model.User        `json:"checker,omitempty"`
+	Maker      *model.User       `json:"maker,omitempty"`
+	Checker    *model.User       `json:"checker,omitempty"`
 }
 
 // ToModel converts DTO to model
@@ -130,3 +173,74 @@ func (r *RequestCoaAccountCreateRequest) ToModel(makerID uint64) (*model.Request
 	return request, nil
 }
 
+// ToModel converts DTO to model for CREATE request with validation
+func (r *RequestCoaAccountCreateRequestWithValidation) ToModel(makerID uint64) (*model.RequestCoaAccount, error) {
+	account := &model.CoaAccount{
+		Code:      r.AccountData.Code,
+		AccountNo: r.AccountData.AccountNo,
+		Name:      r.AccountData.Name,
+		Type:      r.AccountData.Type,
+		Currency:  r.AccountData.Currency,
+		Status:    r.AccountData.Status,
+		ParentID:  r.AccountData.ParentID,
+		Provider:  r.AccountData.Provider,
+		Network:   r.AccountData.Network,
+	}
+
+	// Handle Description (store in metadata)
+	if r.AccountData.Description != nil {
+		metadata := map[string]interface{}{
+			"description": *r.AccountData.Description,
+		}
+		metadataJSON, err := json.Marshal(metadata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal description: %w", err)
+		}
+		account.Metadata = (*datatypes.JSON)(&metadataJSON)
+	}
+
+	request, err := model.NewCreateRequest(account, makerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return request, nil
+}
+
+// ToModel converts DTO to model for EDIT request with validation
+func (r *RequestCoaAccountEditRequestWithValidation) ToModel(makerID uint64) (*model.RequestCoaAccount, error) {
+	account := &model.CoaAccount{
+		ID:        r.AccountData.AccountId,
+		AccountNo: r.AccountData.AccountNo,
+		Status:    r.AccountData.Status,
+	}
+
+	// Handle Description (store in metadata)
+	if r.AccountData.Description != nil {
+		metadata := map[string]interface{}{
+			"description": *r.AccountData.Description,
+		}
+		metadataJSON, err := json.Marshal(metadata)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal description: %w", err)
+		}
+		account.Metadata = (*datatypes.JSON)(&metadataJSON)
+	}
+
+	request, err := model.NewEditRequest(account, makerID)
+	if err != nil {
+		return nil, err
+	}
+
+	return request, nil
+}
+
+// ToModel converts DTO to model for UPDATE request with validation
+func (r *RequestCoaAccountUpdateRequestWithValidation) ToModel() (*CoaAccountData, error) {
+	accountData := &CoaAccountData{
+		AccountNo:   r.AccountData.AccountNo,
+		Status:      r.AccountData.Status,
+		Description: r.AccountData.Description,
+	}
+	return accountData, nil
+}

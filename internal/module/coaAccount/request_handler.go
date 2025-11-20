@@ -1,15 +1,18 @@
 package coaaccount
 
 import (
+	"bytes"
 	"core-ledger/internal/module/middleware"
 	"core-ledger/internal/module/validate"
 	model "core-ledger/model/core-ledger"
 	"core-ledger/model/dto"
 	"core-ledger/pkg/ginhp"
 	"core-ledger/pkg/logger"
+	"core-ledger/pkg/repo"
 	"core-ledger/pkg/utils"
 	"encoding/json"
-
+	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,16 +21,18 @@ import (
 )
 
 type RequestCoaAccountHandler struct {
-	logger  logger.CustomLogger
-	service *RequestCoaAccountService
-	db      *gorm.DB
+	logger        logger.CustomLogger
+	service       *RequestCoaAccountService
+	coAccountRepo repo.CoAccountRepo
+	db            *gorm.DB
 }
 
-func NewRequestCoaAccountHandler(service *RequestCoaAccountService, db *gorm.DB) *RequestCoaAccountHandler {
+func NewRequestCoaAccountHandler(service *RequestCoaAccountService, db *gorm.DB, coAccountRepo repo.CoAccountRepo) *RequestCoaAccountHandler {
 	return &RequestCoaAccountHandler{
-		logger:  logger.NewSystemLog("RequestCoaAccountHandler"),
-		service: service,
-		db:      db,
+		logger:        logger.NewSystemLog("RequestCoaAccountHandler"),
+		service:       service,
+		coAccountRepo: coAccountRepo,
+		db:            db,
 	}
 }
 
@@ -84,36 +89,102 @@ func (h *RequestCoaAccountHandler) Create(c *gin.Context) {
 		return
 	}
 
-	var req dto.RequestCoaAccountCreateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		out := validate.FormatErrorMessage(req, err)
-		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
-		return
-	}
-
-	// Check duplicate (theo luồng: check cả trong request_coa_accounts và coa_accounts)
-	duplicateInfo, err := h.service.CheckDuplicate(c, req.AccountData.AccountNo, req.RequestType)
+	// Read request body to determine request_type first
+	bodyBytes, err := c.GetRawData()
 	if err != nil {
-		h.logger.Error("Failed to check duplicate", err)
-		ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra khi kiểm tra trùng lặp")
+		ginhp.RespondError(c, http.StatusBadRequest, "Failed to read request body")
 		return
 	}
 
-	if duplicateInfo.IsDuplicate {
-		c.JSON(http.StatusBadRequest, dto.PreResponse{
-			Data: map[string]interface{}{
-				"is_duplicate": true,
-				"message":      duplicateInfo.Message,
-				"duplicate_in": duplicateInfo.DuplicateIn,
-			},
+	// Parse request_type from JSON
+	var temp struct {
+		RequestType model.RequestType `json:"request_type"`
+	}
+	if err := json.Unmarshal(bodyBytes, &temp); err != nil {
+		ginhp.RespondError(c, http.StatusBadRequest, "Invalid JSON format")
+		return
+	}
+
+	// Restore body for binding
+	c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	var request *model.RequestCoaAccount
+	var accountNo string
+
+	// Bind to appropriate struct based on request_type
+	if temp.RequestType == model.RequestTypeCreate {
+		var req dto.RequestCoaAccountCreateRequestWithValidation
+		if err := c.ShouldBindJSON(&req); err != nil {
+			out := validate.FormatErrorMessage(req, err)
+			ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
+			return
+		}
+
+		accountNo = req.AccountData.AccountNo
+
+		// Check duplicate
+		duplicateInfo, err := h.service.CheckDuplicate(c, accountNo, model.RequestTypeCreate)
+		if err != nil {
+			h.logger.Error("Failed to check duplicate", err)
+			ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra khi kiểm tra trùng lặp")
+			return
+		}
+
+		if duplicateInfo.IsDuplicate {
+			c.JSON(http.StatusBadRequest, dto.PreResponse{
+				Data: map[string]interface{}{
+					"is_duplicate": true,
+					"message":      duplicateInfo.Message,
+					"duplicate_in": duplicateInfo.DuplicateIn,
+				},
+			})
+			return
+		}
+		//check duplicate code
+		exists, err := h.coAccountRepo.Exists(c, map[string]any{
+			"code":   req.AccountData.Code,
+			"status": "ACTIVE",
 		})
-		return
-	}
+		if err != nil {
+			ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra")
+			return
+		}
+		if exists {
+			ginhp.RespondError(c, http.StatusBadRequest, "Mã tài khoản đã tồn tại")
+			return
+		}
+		// Convert to model
+		request, err = req.ToModel(uint64(userID))
+		if err != nil {
+			ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+			return
+		}
+	} else if temp.RequestType == model.RequestTypeEdit {
+		var req dto.RequestCoaAccountEditRequestWithValidation
+		if err := c.ShouldBindJSON(&req); err != nil {
+			out := validate.FormatErrorMessage(req, err)
+			ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
+			return
+		}
+		fmt.Println("AccountId", req.AccountData.AccountId)
+		accountNo = req.AccountData.AccountNo
+		_, err := h.coAccountRepo.GetOneByFields(c, map[string]interface{}{
+			"id": req.AccountData.AccountId,
+		})
+		if err != nil {
+			fmt.Println("AccountId", req.AccountData.AccountId)
+			ginhp.ReturnBadRequestError(c, err)
+			return
+		}
 
-	// Tạo request
-	request, err := req.ToModel(uint64(userID))
-	if err != nil {
-		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+		// Convert to model
+		request, err = req.ToModel(uint64(userID))
+		if err != nil {
+			ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+			return
+		}
+	} else {
+		ginhp.RespondError(c, http.StatusBadRequest, "Invalid request_type. Must be CREATE or EDIT")
 		return
 	}
 
@@ -135,7 +206,7 @@ func (h *RequestCoaAccountHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var req dto.RequestCoaAccountUpdateRequest
+	var req dto.RequestCoaAccountUpdateRequestWithValidation
 	if err := c.ShouldBindJSON(&req); err != nil {
 		out := validate.FormatErrorMessage(req, err)
 		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
@@ -160,28 +231,10 @@ func (h *RequestCoaAccountHandler) Update(c *gin.Context) {
 	}
 
 	// Update account data
-	// For EDIT: chỉ được phép edit AccountNo, Status, Description
-	// For CREATE: có thể edit tất cả
+	// For UPDATE: chỉ được phép edit AccountNo, Status, Description (giống EDIT)
 	account := &model.CoaAccount{
 		AccountNo: req.AccountData.AccountNo,
 		Status:    req.AccountData.Status,
-	}
-
-	if request.RequestType == model.RequestTypeCreate {
-		// CREATE: có thể edit tất cả field
-		account.Code = req.AccountData.Code
-		account.Name = req.AccountData.Name
-		account.Type = req.AccountData.Type
-		account.Currency = req.AccountData.Currency
-		account.ParentID = req.AccountData.ParentID
-		account.Provider = req.AccountData.Provider
-		account.Network = req.AccountData.Network
-	} else if request.RequestType == model.RequestTypeEdit {
-		// EDIT: chỉ được edit AccountNo, Status, Description
-		// Lấy account hiện tại để giữ nguyên các field khác
-		if request.CoaAccountID != nil {
-			account.ID = *request.CoaAccountID
-		}
 	}
 
 	// Handle Description (store in metadata)
@@ -191,7 +244,7 @@ func (h *RequestCoaAccountHandler) Update(c *gin.Context) {
 		}
 		metadataJSON, err := json.Marshal(metadata)
 		if err != nil {
-			ginhp.RespondError(c, http.StatusBadRequest, "Failed to process description")
+			ginhp.RespondError(c, http.StatusBadRequest, "Failed to marshal description")
 			return
 		}
 		account.Metadata = (*datatypes.JSON)(&metadataJSON)
