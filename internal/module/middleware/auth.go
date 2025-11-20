@@ -155,13 +155,13 @@ func extractTokenFromHeader(c *gin.Context) (string, error) {
 }
 
 // GetUserIDFromContext retrieves the user SystemPaymentID from the Gin context.
-func GetUserIDFromContext(c *gin.Context) (int64, error) {
+func GetUserIDFromContext(c *gin.Context) (uint64, error) {
 	userID, ok := c.Get("userID")
 	if !ok {
 		return 0, errors.New("userID not found in context")
 	}
-
-	id, ok := userID.(int64)
+	fmt.Printf("Type of myInt: %T\n", userID)
+	id, ok := userID.(uint64)
 	if !ok {
 		return 0, errors.New("userID in context is not of type uint")
 	}

@@ -1,7 +1,6 @@
 package coaaccount
 
 import (
-	"encoding/json"
 	"core-ledger/internal/module/middleware"
 	"core-ledger/internal/module/validate"
 	model "core-ledger/model/core-ledger"
@@ -9,6 +8,7 @@ import (
 	"core-ledger/pkg/ginhp"
 	"core-ledger/pkg/logger"
 	"core-ledger/pkg/utils"
+	"encoding/json"
 
 	"net/http"
 
@@ -80,7 +80,7 @@ func (h *RequestCoaAccountHandler) Create(c *gin.Context) {
 	// Lấy userID từ context
 	userID, err := middleware.GetUserIDFromContext(c)
 	if err != nil {
-		ginhp.RespondError(c, http.StatusUnauthorized, "User not authenticated")
+		ginhp.RespondError(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -311,4 +311,3 @@ func (h *RequestCoaAccountHandler) Reject(c *gin.Context) {
 
 	ginhp.RespondOK(c, "Từ chối request thành công")
 }
-

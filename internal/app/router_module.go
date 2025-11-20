@@ -125,6 +125,7 @@ func SetupAllRoutes(params RouterParams) {
 	transactions.SetupRoutes(protected, params.TransactionHandler)
 	excel.SetupRoutes(protected, params.ExcelHandler)
 	coaaccount.SetupRoutes(protected, params.CoaAccountHandler, params.CoaRequestHandler, userAuthMiddleware)
+	// coaaccount.SetupRoutes(protected, params.CoaAccountHandler, params.CoaRequestHandler)
 	entries.SetupRoutes(protected, params.EntriesHandler)
 	ruleCategory.SetupRoutes(protected, params.RuleCategoryHandler)
 	ruleValue.SetupRoutes(protected, params.RuleValueHander)

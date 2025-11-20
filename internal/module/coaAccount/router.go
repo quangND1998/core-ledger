@@ -1,8 +1,6 @@
 package coaaccount
 
 import (
-	"core-ledger/internal/module/user"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -10,7 +8,8 @@ func registerAPIRoutes(r *gin.RouterGroup, h *CoaAccountHandler, middleware ...g
 	// Apply middleware to the group if provided
 	tx := r.Group("coa-accounts", middleware...)
 	{
-		tx.GET("/list", user.UserPermissionMiddleware("coa.create", "web"), h.List)
+		tx.GET("/list", h.List)
+		// tx.GET("/list", user.UserAnyPermissionMiddleware([]string{"coa.view"}, "web"), h.List)
 		tx.GET("/:id", h.GetCoaAccountDetail)
 		tx.GET("export", h.ExportCoaAccounts)
 		// Add more routes here
