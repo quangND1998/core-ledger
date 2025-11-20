@@ -41,17 +41,21 @@ type RuleStepResp struct {
 
 	InputCode *string `json:"input_code,omitempty"`
 	InputType string  `json:"input_type,omitempty"`
+	
+	Separator string `json:"separator"` // Separator để ghép account code
 }
 type RuleGroupResp struct {
 	ID        uint64         `json:"id"`
 	Code      string         `json:"code"`
 	Name      string         `json:"name"`
 	InputType string         `json:"input_type"`
+	Separator string         `json:"separator"` // Separator để ghép account code
 	Steps     []RuleStepResp `json:"steps"`
 }
 type RuleTypeResp struct {
-	ID     uint64          `json:"id"`
-	Code   string          `json:"code"`
-	Name   string          `json:"name"`
-	Groups []RuleGroupResp `json:"groups"`
+	ID       uint64          `json:"id"`
+	Code     string         `json:"code"`
+	Name     string         `json:"name"`
+	Separator string        `json:"separator"` // Separator để ghép account code
+	Groups   []RuleGroupResp `json:"groups"`
 }

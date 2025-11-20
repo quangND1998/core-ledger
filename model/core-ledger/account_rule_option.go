@@ -23,3 +23,4 @@ type AccountRuleOption struct {
 func (AccountRuleOption) TableName() string {
 	return "account_rule_options"
 }
+

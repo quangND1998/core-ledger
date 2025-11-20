@@ -18,3 +18,4 @@ func (AccountRuleOptionStep) TableName() string {
 	return "account_rule_option_steps"
 }
 
+

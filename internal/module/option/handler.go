@@ -132,17 +132,54 @@ func (h *OptionHandler) GetFullRuleData(c *gin.Context) {
 	var allSteps []model.AccountRuleOptionStep
 	var allCategories []model.RuleCategory
 	var allValues []model.RuleValue
+	var allLayers []model.AccountRuleLayer
 
 	// Load toàn bộ data
 	h.db.Order("sort_order ASC").Find(&allOptions)
 	h.db.Order("step_order ASC").Find(&allSteps)
 	h.db.Find(&allCategories)
 	h.db.Where("is_delete = false").Order("sort_order ASC").Find(&allValues)
+	h.db.Order("layer_index ASC").Find(&allLayers)
 
 	// --------- Map index ---------
 	categoryMap := make(map[uint64]model.RuleCategory)
 	for _, ctg := range allCategories {
 		categoryMap[uint64(ctg.ID)] = ctg
+	}
+
+	// Map layer_id -> layer để lấy separator
+	layerMap := make(map[uint64]model.AccountRuleLayer)
+	for _, layer := range allLayers {
+		layerMap[layer.ID] = layer
+	}
+
+	// Helper function để lấy separator từ layer metadata
+	getSeparatorFromLayer := func(layerID uint64) string {
+		layer, ok := layerMap[layerID]
+		if !ok {
+			return "." // default separator
+		}
+		if layer.Metadata != nil {
+			if sep, ok := layer.Metadata["separator"].(string); ok {
+				return sep
+			}
+		}
+		return "." // default separator
+	}
+
+	// Helper function để lấy separator từ category metadata
+	// Trả về separator nếu có, nếu không trả về empty string để fallback
+	getSeparatorFromCategory := func(categoryID uint64) (string, bool) {
+		cat, ok := categoryMap[categoryID]
+		if !ok {
+			return "", false
+		}
+		if cat.Metadata != nil {
+			if sep, ok := cat.Metadata["separator"].(string); ok && sep != "" {
+				return sep, true
+			}
+		}
+		return "", false
 	}
 
 	valueMap := make(map[uint64][]dto.RuleValueResp)
@@ -152,6 +189,12 @@ func (h *OptionHandler) GetFullRuleData(c *gin.Context) {
 			Name:  v.Name,
 			Value: v.Value,
 		})
+	}
+
+	// Map option_id -> option để lấy layer_id
+	optionIDMap := make(map[uint64]model.AccountRuleOption)
+	for _, opt := range allOptions {
+		optionIDMap[opt.ID] = opt
 	}
 
 	// --------- Group option theo parent ---------
@@ -171,9 +214,10 @@ func (h *OptionHandler) GetFullRuleData(c *gin.Context) {
 	// TYPE = parent_option_id IS NULL (tức parentID = 0)
 	for _, t := range optionMap[0] {
 		typeResp := dto.RuleTypeResp{
-			ID:   t.ID,
-			Code: t.Code,
-			Name: t.Name,
+			ID:        t.ID,
+			Code:      t.Code,
+			Name:      t.Name,
+			Separator: getSeparatorFromLayer(t.LayerID),
 		}
 
 		// GROUP của TYPE này
@@ -183,6 +227,7 @@ func (h *OptionHandler) GetFullRuleData(c *gin.Context) {
 				Code:      g.Code,
 				Name:      g.Name,
 				InputType: g.InputType,
+				Separator: getSeparatorFromLayer(g.LayerID),
 			}
 
 			// STEP của group
@@ -203,11 +248,20 @@ func (h *OptionHandler) GetFullRuleData(c *gin.Context) {
 						stepResp.Type = s.InputType
 						stepResp.CategoryCode = cat.Code
 						stepResp.Values = valueMap[uint64(cat.ID)]
+						// Lấy separator từ category metadata, nếu không có thì từ layer của group
+						if sep, ok := getSeparatorFromCategory(*s.CategoryID); ok {
+							stepResp.Separator = sep
+						} else {
+							// Fallback to group's layer separator
+							stepResp.Separator = getSeparatorFromLayer(g.LayerID)
+						}
 					}
 
 					// input
 					if s.CategoryID == nil && s.InputCode != nil {
 						stepResp.Type = s.InputType
+						// Lấy separator từ layer của group (vì input tự do thuộc về layer của option cha)
+						stepResp.Separator = getSeparatorFromLayer(g.LayerID)
 					}
 
 					steps = append(steps, stepResp)

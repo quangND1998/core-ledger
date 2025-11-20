@@ -13,14 +13,53 @@ import (
 
 func SeederAccountRuleTemplates(db *gorm.DB) error {
 	layerSeeds := []model.AccountRuleLayer{
-		{Code: "TYPE", Name: "Layer 1 (Type)", LayerIndex: 1, Status: "ACTIVE"},
-		{Code: "GROUP", Name: "Layer 2 (Group)", LayerIndex: 2, Status: "ACTIVE"},
-		{Code: "CURRENCY", Name: "Layer 3", LayerIndex: 3, Status: "ACTIVE"},
-		{Code: "DETAILS", Name: "Layer 4", LayerIndex: 4, Status: "ACTIVE", Metadata: datatypes.JSONMap{
-			"input_type":  "text",
-			"placeholder": "Nhập DETAILS",
-		}},
-		{Code: "NETWORK", Name: "Layer 5", LayerIndex: 5, Status: "ACTIVE"},
+		{
+			Code:       "TYPE",
+			Name:       "Layer 1 (Type)",
+			LayerIndex: 1,
+			Status:     "ACTIVE",
+			Metadata: datatypes.JSONMap{
+				"separator": ":",
+			},
+		},
+		{
+			Code:       "GROUP",
+			Name:       "Layer 2 (Group)",
+			LayerIndex: 2,
+			Status:     "ACTIVE",
+			Metadata: datatypes.JSONMap{
+				"separator": ":",
+			},
+		},
+		{
+			Code:       "CURRENCY",
+			Name:       "Layer 3",
+			LayerIndex: 3,
+			Status:     "ACTIVE",
+			Metadata: datatypes.JSONMap{
+				"separator": ".",
+			},
+		},
+		{
+			Code:       "DETAILS",
+			Name:       "Layer 4",
+			LayerIndex: 4,
+			Status:     "ACTIVE",
+			Metadata: datatypes.JSONMap{
+				"input_type":  "text",
+				"placeholder": "Nhập DETAILS",
+				"separator":   ".",
+			},
+		},
+		{
+			Code:       "NETWORK",
+			Name:       "Layer 5",
+			LayerIndex: 5,
+			Status:     "ACTIVE",
+			Metadata: datatypes.JSONMap{
+				"separator": ".",
+			},
+		},
 	}
 
 	layerMap := make(map[string]*model.AccountRuleLayer)
@@ -177,12 +216,28 @@ func upsertAccountRuleLayer(db *gorm.DB, seed model.AccountRuleLayer) (*model.Ac
 		}
 		return &seed, nil
 	}
+	// Merge metadata để giữ lại các giá trị cũ và thêm/update separator
+	mergedMetadata := make(datatypes.JSONMap)
+	if existing.Metadata != nil {
+		for k, v := range existing.Metadata {
+			mergedMetadata[k] = v
+		}
+	}
+	if seed.Metadata != nil {
+		for k, v := range seed.Metadata {
+			mergedMetadata[k] = v
+		}
+	}
+	if len(mergedMetadata) == 0 {
+		mergedMetadata = nil
+	}
+
 	updates := map[string]interface{}{
 		"name":        seed.Name,
 		"layer_index": seed.LayerIndex,
 		"status":      seed.Status,
 		"description": seed.Description,
-		"metadata":    seed.Metadata,
+		"metadata":    mergedMetadata,
 	}
 	if err := db.Model(&existing).Updates(updates).Error; err != nil {
 		return nil, err
