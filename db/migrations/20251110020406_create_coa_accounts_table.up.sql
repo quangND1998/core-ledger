@@ -11,7 +11,7 @@ BEGIN
             currency CHAR(8) NOT NULL,
             account_no VARCHAR(64) NOT NULL UNIQUE,
             parent_id BIGINT NULL,
-            status VARCHAR(16) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','INACTIVE')),
+            status VARCHAR(16) DEFAULT 'ACTIVE' NULL,
             provider VARCHAR(64) NULL,
             network VARCHAR(32) NULL,
             tags JSONB NULL,

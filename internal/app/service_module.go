@@ -28,5 +28,6 @@ var ServiceModule = fx.Module("service",
 		permission.NewPermissionService,
 		role.NewRoleService,
 		user.NewUserService,
+		coaaccount.NewRequestCoaAccountService,
 	),
 )

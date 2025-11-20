@@ -1,6 +1,8 @@
 package coaaccount
 
 import (
+	"core-ledger/internal/module/user"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -8,7 +10,7 @@ func registerAPIRoutes(r *gin.RouterGroup, h *CoaAccountHandler, middleware ...g
 	// Apply middleware to the group if provided
 	tx := r.Group("coa-accounts", middleware...)
 	{
-		tx.GET("/list", h.List)
+		tx.GET("/list", user.UserPermissionMiddleware("coa.create", "web"), h.List)
 		tx.GET("/:id", h.GetCoaAccountDetail)
 		tx.GET("export", h.ExportCoaAccounts)
 		// Add more routes here
@@ -22,10 +24,24 @@ func registerAPIRoutes(r *gin.RouterGroup, h *CoaAccountHandler, middleware ...g
 	}
 }
 
+// RegisterRequestCoaAccountRoutes registers routes for request_coa_account
+func RegisterRequestCoaAccountRoutes(r *gin.RouterGroup, h *RequestCoaAccountHandler, middleware ...gin.HandlerFunc) {
+	req := r.Group("request-coa-accounts", middleware...)
+	{
+		req.GET("", h.GetList)              // Get list of requests
+		req.GET("/:id", h.GetDetail)        // Get request detail
+		req.POST("", h.Create)              // Create new request
+		req.PUT("/:id", h.Update)           // Update rejected request
+		req.POST("/:id/approve", h.Approve) // Approve request
+		req.POST("/:id/reject", h.Reject)   // Reject request
+	}
+}
+
 // SetupRoutes registers transaction routes with optional middleware
 // Usage:
 //   - Without middleware: transactions.SetupRoutes(protected, handler)
 //   - With middleware: transactions.SetupRoutes(protected, handler, authMiddleware, loggingMiddleware)
-func SetupRoutes(rg *gin.RouterGroup, h *CoaAccountHandler, middleware ...gin.HandlerFunc) {
+func SetupRoutes(rg *gin.RouterGroup, h *CoaAccountHandler, hr *RequestCoaAccountHandler, middleware ...gin.HandlerFunc) {
 	registerAPIRoutes(rg, h, middleware...)
+	RegisterRequestCoaAccountRoutes(rg, hr, middleware...)
 }

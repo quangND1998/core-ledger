@@ -17,8 +17,11 @@ type User struct {
 	UpdatedAt time.Time `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
 
 	// Relations
-	Roles       []Role       `gorm:"many2many:model_has_roles;joinForeignKey:model_id;joinReferences:role_id;polymorphic:model;polymorphicValue:User" json:"roles,omitempty"`
-	Permissions []Permission `gorm:"many2many:model_has_permissions;joinForeignKey:model_id;joinReferences:permission_id;polymorphic:model;polymorphicValue:User" json:"permissions,omitempty"`
+	// Note: Polymorphic many2many không được GORM hỗ trợ trực tiếp
+	// Sử dụng các method AssignRole, GivePermissionTo để gán role/permission
+	// và LoadRoles, LoadPermissions để load dữ liệu
+	Roles       []Role       `gorm:"-" json:"roles,omitempty"`       // Load bằng method LoadRoles()
+	Permissions []Permission `gorm:"-" json:"permissions,omitempty"` // Load bằng method LoadPermissions()
 }
 
 func (u *User) TableName() string {
@@ -45,21 +48,30 @@ func (u *User) HasPermission(db *gorm.DB, permissionName string, guardName strin
 		return true, nil
 	}
 
-	// Check via role
-	var roleCount int64
+	// Check via role: Load roles của user, rồi check permissions của từng role
+	var userRoles []Role
 	err = db.Model(&ModelHasRole{}).
 		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
-		Joins("JOIN role_has_permissions ON roles.id = role_has_permissions.role_id").
-		Joins("JOIN permissions ON role_has_permissions.permission_id = permissions.id").
 		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
 		Where("roles.guard_name = ?", guardName).
-		Where("permissions.name = ? AND permissions.guard_name = ?", permissionName, guardName).
-		Count(&roleCount).Error
+		Select("roles.*").
+		Find(&userRoles).Error
 	if err != nil {
 		return false, err
 	}
 
-	return roleCount > 0, nil
+	// Check permissions của từng role (sử dụng relationship)
+	for _, role := range userRoles {
+		var rolePermissions []Permission
+		err = db.Model(&role).
+			Association("Permissions").
+			Find(&rolePermissions, "name = ? AND guard_name = ?", permissionName, guardName)
+		if err == nil && len(rolePermissions) > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // HasAnyPermission checks if user has any of the specified permissions
@@ -82,21 +94,30 @@ func (u *User) HasAnyPermission(db *gorm.DB, permissionNames []string, guardName
 		return true, nil
 	}
 
-	// Check via roles
-	var roleCount int64
+	// Check via roles: Load roles và check permissions qua relationship
+	var userRoles []Role
 	err = db.Model(&ModelHasRole{}).
 		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
-		Joins("JOIN role_has_permissions ON roles.id = role_has_permissions.role_id").
-		Joins("JOIN permissions ON role_has_permissions.permission_id = permissions.id").
 		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
 		Where("roles.guard_name = ?", guardName).
-		Where("permissions.name IN ? AND permissions.guard_name = ?", permissionNames, guardName).
-		Count(&roleCount).Error
+		Select("roles.*").
+		Find(&userRoles).Error
 	if err != nil {
 		return false, err
 	}
 
-	return roleCount > 0, nil
+	// Check permissions của từng role
+	for _, role := range userRoles {
+		var rolePermissions []Permission
+		err = db.Model(&role).
+			Association("Permissions").
+			Find(&rolePermissions, "name IN ? AND guard_name = ?", permissionNames, guardName)
+		if err == nil && len(rolePermissions) > 0 {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // HasAllPermissions checks if user has all of the specified permissions
@@ -147,28 +168,34 @@ func (u *User) GetAllPermissions(db *gorm.DB, guardName string) ([]Permission, e
 		return nil, err
 	}
 
-	// Get permissions via roles
-	var rolePerms []Permission
+	// Get permissions via roles: Load roles trước, rồi load permissions của từng role
+	var userRoles []Role
 	err = db.Model(&ModelHasRole{}).
 		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
-		Joins("JOIN role_has_permissions ON roles.id = role_has_permissions.role_id").
-		Joins("JOIN permissions ON role_has_permissions.permission_id = permissions.id").
 		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
 		Where("roles.guard_name = ?", guardName).
-		Where("permissions.guard_name = ?", guardName).
-		Select("DISTINCT permissions.*").
-		Find(&rolePerms).Error
+		Select("roles.*").
+		Find(&userRoles).Error
 	if err != nil {
 		return nil, err
 	}
 
-	// Combine and deduplicate
+	// Load permissions của từng role qua relationship
 	permMap := make(map[uint64]Permission)
 	for _, perm := range directPerms {
 		permMap[perm.ID] = perm
 	}
-	for _, perm := range rolePerms {
-		permMap[perm.ID] = perm
+
+	for _, role := range userRoles {
+		var rolePermissions []Permission
+		err = db.Model(&role).
+			Association("Permissions").
+			Find(&rolePermissions, "guard_name = ?", guardName)
+		if err == nil {
+			for _, perm := range rolePermissions {
+				permMap[perm.ID] = perm
+			}
+		}
 	}
 
 	permissions = make([]Permission, 0, len(permMap))
@@ -305,8 +332,8 @@ func (u *User) GivePermissionTo(db *gorm.DB, permissionName string, guardName st
 	// Assign permission
 	modelHasPermission := ModelHasPermission{
 		PermissionID: permission.ID,
-		ModelID:     u.ID,
-		ModelType:   "User",
+		ModelID:      u.ID,
+		ModelType:    "User",
 	}
 	return db.Create(&modelHasPermission).Error
 }
@@ -357,8 +384,8 @@ func (u *User) AssignRole(db *gorm.DB, roleName string, guardName string) error 
 
 	// Assign role
 	modelHasRole := ModelHasRole{
-		RoleID:   role.ID,
-		ModelID:  u.ID,
+		RoleID:    role.ID,
+		ModelID:   u.ID,
 		ModelType: "User",
 	}
 	return db.Create(&modelHasRole).Error
@@ -440,13 +467,55 @@ func (u *User) SyncRolesByIDs(db *gorm.DB, roleIDs []uint64) error {
 		modelHasRoles := make([]ModelHasRole, 0, len(roleIDs))
 		for _, roleID := range roleIDs {
 			modelHasRoles = append(modelHasRoles, ModelHasRole{
-				RoleID:   roleID,
-				ModelID:  u.ID,
+				RoleID:    roleID,
+				ModelID:   u.ID,
 				ModelType: "User",
 			})
 		}
 		return db.Create(&modelHasRoles).Error
 	}
 
+	return nil
+}
+
+// LoadRoles loads roles for user into u.Roles field
+func (u *User) LoadRoles(db *gorm.DB, guardName string) error {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var roles []Role
+	err := db.Model(&ModelHasRole{}).
+		Joins("JOIN roles ON model_has_roles.role_id = roles.id").
+		Where("model_has_roles.model_id = ? AND model_has_roles.model_type = ?", u.ID, "User").
+		Where("roles.guard_name = ?", guardName).
+		Select("roles.*").
+		Find(&roles).Error
+	if err != nil {
+		return err
+	}
+
+	u.Roles = roles
+	return nil
+}
+
+// LoadPermissions loads direct permissions for user into u.Permissions field
+func (u *User) LoadPermissions(db *gorm.DB, guardName string) error {
+	if guardName == "" {
+		guardName = u.GuardName
+	}
+
+	var permissions []Permission
+	err := db.Model(&ModelHasPermission{}).
+		Joins("JOIN permissions ON model_has_permissions.permission_id = permissions.id").
+		Where("model_has_permissions.model_id = ? AND model_has_permissions.model_type = ?", u.ID, "User").
+		Where("permissions.guard_name = ?", guardName).
+		Select("permissions.*").
+		Find(&permissions).Error
+	if err != nil {
+		return err
+	}
+
+	u.Permissions = permissions
 	return nil
 }

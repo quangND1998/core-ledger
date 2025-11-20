@@ -1,6 +1,7 @@
 package user
 
 import (
+	"core-ledger/internal/module/validate"
 	model "core-ledger/model/core-ledger"
 	"core-ledger/model/dto"
 	"core-ledger/pkg/database"
@@ -11,6 +12,7 @@ import (
 	"core-ledger/pkg/repo"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -54,12 +56,12 @@ type AuthResponse struct {
 	RefreshToken string    `json:"refresh_token"`
 	ExpiresAt    time.Time `json:"expires_at"`
 	User         struct {
-		ID          uint64                  `json:"id"`
-		Email       string                  `json:"email"`
-		FullName    string                  `json:"full_name"`
-		GuardName   string                  `json:"guard_name"`
-		Roles       []model.Role            `json:"roles"`
-		Permissions []model.Permission      `json:"permissions"`
+		ID          uint64             `json:"id"`
+		Email       string             `json:"email"`
+		FullName    string             `json:"full_name"`
+		GuardName   string             `json:"guard_name"`
+		Roles       []model.Role       `json:"roles"`
+		Permissions []model.Permission `json:"permissions"`
 	} `json:"user"`
 }
 
@@ -67,7 +69,9 @@ type AuthResponse struct {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+		out := validate.FormatErrorMessage(req, err)
+		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
+
 		return
 	}
 
@@ -296,6 +300,86 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	})
 }
 
+// LogoutRequest represents the logout request body
+type LogoutRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+// LogoutResponse represents the logout response
+type LogoutResponse struct {
+	Message string `json:"message"`
+}
+
+// Logout handles user logout and blacklists tokens
+func (h *AuthHandler) Logout(c *gin.Context) {
+	var req LogoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		// Logout can work without body, but if body is provided, validate it
+		// For now, we'll make refresh_token optional
+	}
+
+	var userID uint64
+
+	// Get access token from Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader != "" {
+		// Extract token from "Bearer {token}"
+		parts := strings.Split(authHeader, " ")
+		if len(parts) == 2 && parts[0] == "Bearer" {
+			accessToken := parts[1]
+			// Parse access token without blacklist check (to get claims)
+			claims, err := h.jwtService.ValidateTokenWithoutBlacklistCheck(accessToken)
+			if err == nil {
+				userID = claims.UserID
+				// Blacklist access token
+				if err := h.jwtService.BlacklistTokenByClaims(accessToken, claims); err != nil {
+					h.logger.Error("Failed to blacklist access token", err)
+				} else {
+					h.logger.Info("Access token blacklisted", map[string]interface{}{
+						"user_id": userID,
+					})
+				}
+			}
+		}
+	}
+
+	// Blacklist refresh token if provided
+	if req.RefreshToken != "" {
+		claims, err := h.jwtService.ValidateTokenWithoutBlacklistCheck(req.RefreshToken)
+		if err == nil {
+			if userID == 0 {
+				userID = claims.UserID
+			}
+			// Blacklist refresh token
+			if err := h.jwtService.BlacklistTokenByClaims(req.RefreshToken, claims); err != nil {
+				h.logger.Error("Failed to blacklist refresh token", err)
+			} else {
+				h.logger.Info("Refresh token blacklisted", map[string]interface{}{
+					"user_id": userID,
+				})
+			}
+		} else {
+			h.logger.Warn("Invalid refresh token provided during logout", err)
+		}
+	}
+
+	// Log logout event for audit purposes
+	if userID > 0 {
+		h.logger.Info("User logged out", map[string]interface{}{
+			"user_id": userID,
+		})
+	}
+
+	// Return success response
+	response := LogoutResponse{
+		Message: "Logout successful. Tokens have been revoked.",
+	}
+
+	c.JSON(http.StatusOK, dto.PreResponse{
+		Data: response,
+	})
+}
+
 // loadUserRoles loads all roles for a user
 func (h *AuthHandler) loadUserRoles(user *model.User) ([]model.Role, error) {
 	var roles []model.Role
@@ -311,4 +395,5 @@ func (h *AuthHandler) loadUserRoles(user *model.User) ([]model.Role, error) {
 	}
 	return roles, nil
 }
+
 

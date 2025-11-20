@@ -44,7 +44,9 @@ type RouterParams struct {
 	RoleHandler         *role.RoleHandler
 	UserHandler         *user.UserHandler
 	AuthHandler         *user.AuthHandler
+	CoaRequestHandler   *coaaccount.RequestCoaAccountHandler
 	UserRepo            repo.UserRepo
+
 	// Add more handlers here as needed:
 	// UserHandler    *handler.UserHandler
 	// OrderHandler   *handler.OrderHandler
@@ -122,7 +124,7 @@ func SetupAllRoutes(params RouterParams) {
 	userAuthMiddleware := user.UserAuthMiddleware(params.UserRepo)
 	transactions.SetupRoutes(protected, params.TransactionHandler)
 	excel.SetupRoutes(protected, params.ExcelHandler)
-	coaaccount.SetupRoutes(protected, params.CoaAccountHandler, userAuthMiddleware)
+	coaaccount.SetupRoutes(protected, params.CoaAccountHandler, params.CoaRequestHandler, userAuthMiddleware)
 	entries.SetupRoutes(protected, params.EntriesHandler)
 	ruleCategory.SetupRoutes(protected, params.RuleCategoryHandler)
 	ruleValue.SetupRoutes(protected, params.RuleValueHander)

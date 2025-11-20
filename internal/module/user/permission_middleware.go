@@ -1,8 +1,8 @@
 package user
 
 import (
-	"core-ledger/pkg/ginhp"
 	"core-ledger/pkg/database"
+	"core-ledger/pkg/ginhp"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,10 +12,17 @@ import (
 // This middleware should be used AFTER UserAuthMiddleware
 func UserPermissionMiddleware(permissionName string, guardName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Check if response already written (prevent double write)
+		if c.Writer.Written() {
+			return
+		}
+
 		// Get user from context (set by UserAuthMiddleware)
 		user, err := GetUserFromContext(c)
 		if err != nil {
-			ginhp.RespondError(c, http.StatusUnauthorized, "User not authenticated")
+			if !c.Writer.Written() {
+				ginhp.RespondError(c, http.StatusUnauthorized, "User not authenticated")
+			}
 			c.Abort()
 			return
 		}
@@ -29,13 +36,17 @@ func UserPermissionMiddleware(permissionName string, guardName string) gin.Handl
 		// Check permission
 		hasPermission, err := user.HasPermission(database.Instance(), permissionName, checkGuardName)
 		if err != nil {
-			ginhp.RespondError(c, http.StatusInternalServerError, "Failed to check permission")
+			if !c.Writer.Written() {
+				ginhp.RespondError(c, http.StatusInternalServerError, "Failed to check permission")
+			}
 			c.Abort()
 			return
 		}
 
 		if !hasPermission {
-			ginhp.RespondError(c, http.StatusForbidden, "Insufficient permissions")
+			if !c.Writer.Written() {
+				ginhp.RespondError(c, http.StatusForbidden, "Insufficient permissions")
+			}
 			c.Abort()
 			return
 		}
@@ -223,4 +234,3 @@ func UserAllPermissionsMiddleware(permissionNames []string, guardName string) gi
 		c.Next()
 	}
 }
-

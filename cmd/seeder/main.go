@@ -14,6 +14,7 @@ func main() {
 	seeders := []func(*gorm.DB) error{
 		seeder.SeederRuleCategories,
 		seeder.SeederAccountRuleTemplates,
+		seeder.SeederUser,
 	}
 
 	for _, s := range seeders {

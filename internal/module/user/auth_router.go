@@ -11,6 +11,7 @@ func registerAuthRoutes(r *gin.RouterGroup, h *AuthHandler) {
 		auth.POST("/login", h.Login)
 		auth.POST("/register", h.Register)
 		auth.POST("/refresh", h.RefreshToken)
+		auth.POST("/logout", h.Logout)
 	}
 }
 
@@ -18,4 +19,3 @@ func registerAuthRoutes(r *gin.RouterGroup, h *AuthHandler) {
 func SetupAuthRoutes(rg *gin.RouterGroup, h *AuthHandler) {
 	registerAuthRoutes(rg, h)
 }
-
