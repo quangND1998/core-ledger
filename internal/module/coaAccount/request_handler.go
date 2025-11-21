@@ -198,18 +198,12 @@ func (h *RequestCoaAccountHandler) Create(c *gin.Context) {
 }
 
 // Update handles PUT /request-coa-accounts/:id
-// Chỉ cho phép update request có status REJECTED
+// Cho phép update request có status PENDING với request_type = CREATE
+// Hoặc request có status REJECTED
 func (h *RequestCoaAccountHandler) Update(c *gin.Context) {
 	id, err := utils.ParseIntIdParam(c.Param("id"))
 	if err != nil {
 		ginhp.RespondError(c, http.StatusBadRequest, "Invalid ID")
-		return
-	}
-
-	var req dto.RequestCoaAccountUpdateRequestWithValidation
-	if err := c.ShouldBindJSON(&req); err != nil {
-		out := validate.FormatErrorMessage(req, err)
-		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
 		return
 	}
 
@@ -224,43 +218,128 @@ func (h *RequestCoaAccountHandler) Update(c *gin.Context) {
 		return
 	}
 
-	// Chỉ cho phép update request bị reject
-	if request.RequestStatus != model.RequestStatusRejected {
-		ginhp.RespondError(c, http.StatusBadRequest, "Chỉ có thể cập nhật request đã bị từ chối")
-		return
-	}
-
-	// Update account data
-	// For UPDATE: chỉ được phép edit AccountNo, Status, Description (giống EDIT)
-	account := &model.CoaAccount{
-		AccountNo: req.AccountData.AccountNo,
-		Status:    req.AccountData.Status,
-	}
-
-	// Handle Description (store in metadata)
-	if req.AccountData.Description != nil {
-		metadata := map[string]interface{}{
-			"description": *req.AccountData.Description,
-		}
-		metadataJSON, err := json.Marshal(metadata)
-		if err != nil {
-			ginhp.RespondError(c, http.StatusBadRequest, "Failed to marshal description")
+	// Chỉ cho phép update request PENDING với type CREATE hoặc request REJECTED
+	if request.RequestStatus == model.RequestStatusPending && request.RequestType == model.RequestTypeCreate {
+		// Update CREATE request PENDING: cho phép update tất cả fields
+		var req dto.RequestCoaAccountCreateRequestWithValidation
+		if err := c.ShouldBindJSON(&req); err != nil {
+			out := validate.FormatErrorMessage(req, err)
+			ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
 			return
 		}
-		account.Metadata = (*datatypes.JSON)(&metadataJSON)
-	}
 
-	if err := request.SetAccountData(account); err != nil {
-		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+		accountNo := req.AccountData.AccountNo
+
+		// Check duplicate (loại trừ chính request hiện tại đang được update)
+		duplicateInfo, err := h.service.CheckDuplicate(c, accountNo, model.RequestTypeCreate, request.ID)
+		if err != nil {
+			h.logger.Error("Failed to check duplicate", err)
+			ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra khi kiểm tra trùng lặp")
+			return
+		}
+
+		if duplicateInfo.IsDuplicate {
+			c.JSON(http.StatusBadRequest, dto.PreResponse{
+				Data: map[string]interface{}{
+					"is_duplicate": true,
+					"message":      duplicateInfo.Message,
+					"duplicate_in": duplicateInfo.DuplicateIn,
+				},
+			})
+			return
+		}
+
+		// Check duplicate code (trừ chính request hiện tại nếu code không đổi)
+		currentAccountData, _ := request.GetAccountData()
+		if currentAccountData == nil || currentAccountData.Code != req.AccountData.Code {
+			exists, err := h.coAccountRepo.Exists(c, map[string]any{
+				"code":   req.AccountData.Code,
+				"status": "ACTIVE",
+			})
+			if err != nil {
+				ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra")
+				return
+			}
+			if exists {
+				ginhp.RespondError(c, http.StatusBadRequest, "Mã tài khoản đã tồn tại")
+				return
+			}
+		}
+
+		// Convert to model và update
+		account := &model.CoaAccount{
+			Code:      req.AccountData.Code,
+			AccountNo: req.AccountData.AccountNo,
+			Name:      req.AccountData.Name,
+			Type:      req.AccountData.Type,
+			Currency:  req.AccountData.Currency,
+			Status:    req.AccountData.Status,
+			ParentID:  req.AccountData.ParentID,
+			Provider:  req.AccountData.Provider,
+			Network:   req.AccountData.Network,
+		}
+
+		// Handle Description (store in metadata)
+		if req.AccountData.Description != nil {
+			metadata := map[string]interface{}{
+				"description": *req.AccountData.Description,
+			}
+			metadataJSON, err := json.Marshal(metadata)
+			if err != nil {
+				ginhp.RespondError(c, http.StatusBadRequest, "Failed to marshal description")
+				return
+			}
+			account.Metadata = (*datatypes.JSON)(&metadataJSON)
+		}
+
+		if err := request.SetAccountData(account); err != nil {
+			ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+			return
+		}
+
+	} else if request.RequestStatus == model.RequestStatusRejected {
+		// Update REJECTED request: chỉ được phép edit AccountNo, Status, Description
+		var req dto.RequestCoaAccountUpdateRequestWithValidation
+		if err := c.ShouldBindJSON(&req); err != nil {
+			out := validate.FormatErrorMessage(req, err)
+			ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
+			return
+		}
+
+		// Update account data
+		account := &model.CoaAccount{
+			AccountNo: req.AccountData.AccountNo,
+			Status:    req.AccountData.Status,
+		}
+
+		// Handle Description (store in metadata)
+		if req.AccountData.Description != nil {
+			metadata := map[string]interface{}{
+				"description": *req.AccountData.Description,
+			}
+			metadataJSON, err := json.Marshal(metadata)
+			if err != nil {
+				ginhp.RespondError(c, http.StatusBadRequest, "Failed to marshal description")
+				return
+			}
+			account.Metadata = (*datatypes.JSON)(&metadataJSON)
+		}
+
+		if err := request.SetAccountData(account); err != nil {
+			ginhp.RespondError(c, http.StatusBadRequest, err.Error())
+			return
+		}
+
+		// Reset status về PENDING và clear reject info
+		request.RequestStatus = model.RequestStatusPending
+		request.CheckerID = nil
+		request.RejectReason = nil
+		request.Comment = nil
+		request.CheckedAt = nil
+	} else {
+		ginhp.RespondError(c, http.StatusBadRequest, "Chỉ có thể cập nhật request PENDING với type CREATE hoặc request REJECTED")
 		return
 	}
-
-	// Reset status về PENDING và clear reject info
-	request.RequestStatus = model.RequestStatusPending
-	request.CheckerID = nil
-	request.RejectReason = nil
-	request.Comment = nil
-	request.CheckedAt = nil
 
 	if err := h.service.Update(c, request); err != nil {
 		h.logger.Error("Failed to update request", err)

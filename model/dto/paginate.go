@@ -14,11 +14,12 @@ type BasePaginationQuery struct {
 }
 
 type PaginationResponse[T any] struct {
-	Items     []T    `json:"items"`
-	Total     int64  `json:"total"`
-	Limit     int64  `json:"limit"`
-	Page      int64  `json:"page"`
-	TotalPage int64  `json:"total_page"`
-	NextPage  *int64 `json:"next_page"`
-	PrevPage  *int64 `json:"prev_page"`
+	Items               []T    `json:"items"`
+	Total               int64  `json:"total"`
+	Limit               int64  `json:"limit"`
+	Page                int64  `json:"page"`
+	TotalPage           int64  `json:"total_page"`
+	NextPage            *int64 `json:"next_page"`
+	PrevPage            *int64 `json:"prev_page"`
+	TotalPendingRequest int64  `json:"total_pending_request"`
 }

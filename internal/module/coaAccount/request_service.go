@@ -34,7 +34,8 @@ func NewRequestCoaAccountService(db *gorm.DB, coAccountRepo repo.CoAccountRepo) 
 
 // CheckDuplicate checks if account_no already exists in request_coa_accounts or coa_accounts
 // Theo luồng: Check cả "Đã có record submit" và "Đã có account trong Core"
-func (s *RequestCoaAccountService) CheckDuplicate(ctx context.Context, accountNo string, requestType model.RequestType) (*DuplicateInfo, error) {
+// excludeRequestID: ID của request cần loại trừ khỏi kiểm tra (ví dụ: khi update request hiện tại)
+func (s *RequestCoaAccountService) CheckDuplicate(ctx context.Context, accountNo string, requestType model.RequestType, excludeRequestID ...uint64) (*DuplicateInfo, error) {
 	info := &DuplicateInfo{
 		IsDuplicate: false,
 	}
@@ -63,6 +64,11 @@ func (s *RequestCoaAccountService) CheckDuplicate(ctx context.Context, accountNo
 			string(model.RequestStatusPending),
 			string(model.RequestStatusApproved),
 		})
+
+	// Loại trừ request hiện tại nếu có excludeRequestID
+	if len(excludeRequestID) > 0 && excludeRequestID[0] > 0 {
+		query = query.Where("id != ?", excludeRequestID[0])
+	}
 
 	if err := query.Count(&count).Error; err != nil {
 		return nil, err

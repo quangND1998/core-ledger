@@ -29,11 +29,11 @@ func NewRuleCategoryRepo(db *gorm.DB) RuleCategoryRepo {
 }
 
 func (c *ruleCategoryRepo) List(ctx context.Context) ([]*model.RuleCategory, error) {
-	var accounts []*model.RuleCategory
-	if err := c.db.WithContext(ctx).Find(&accounts).Error; err != nil {
+	var rule_categories []*model.RuleCategory
+	if err := c.db.WithContext(ctx).Preload("RuleValues").Find(&rule_categories).Error; err != nil {
 		return nil, err
 	}
-	return accounts, nil
+	return rule_categories, nil
 }
 func (c *ruleCategoryRepo) Save(customer *model.RuleCategory) error {
 	return c.db.Create(&customer).Error

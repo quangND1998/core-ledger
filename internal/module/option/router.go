@@ -6,11 +6,11 @@ import (
 
 func registerAPIRoutes(r *gin.RouterGroup, h *OptionHandler, middleware ...gin.HandlerFunc) {
 	// Apply middleware to the group if provided
-	tx := r.Group("rule", middleware...)
-	{
+	// tx := r.Group("rule", middleware...)
+	// {
 		// tx.GET("types", h.GetRuleTypes)
-		// tx.GET("options/tree", h.GetRuleOptionTree)
-		tx.GET("options/full", h.GetFullRuleData)
+		// tx.GET("options/tree", h.GetRuleOptionTree) // DEPRECATED
+		// tx.GET("options/full", h.GetFullRuleData) // DEPRECATED - Sử dụng /rule-category/coa-rules thay thế
 		// tx.GET("types/:typeId/groups", h.GetRuleGroups)
 		// tx.GET("groups/:groupId/steps", h.GetRuleOptionSteps)
 		// Add more routes here
@@ -18,7 +18,7 @@ func registerAPIRoutes(r *gin.RouterGroup, h *OptionHandler, middleware ...gin.H
 		// tx.GET("/:id", h.GetByID)
 		// tx.PUT("/:id", h.Update)
 		// tx.DELETE("/:id", h.Delete)
-	}
+	// }
 }
 
 // SetupRoutes registers transaction routes with optional middleware

@@ -9,6 +9,7 @@ func registerAPIRoutes(r *gin.RouterGroup, h *RuleCategoryHandler, middleware ..
 	tx := r.Group("rule-category", middleware...)
 	{
 		tx.GET("/list", h.List)
+		tx.GET("/coa-rules", h.GetCoaAccountRules) // Endpoint mới để lấy rules cho COA
 
 		// Add more routes here
 		// tx.POST("", h.Create)

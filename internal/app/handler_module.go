@@ -8,7 +8,6 @@ import (
 	coaaccount "core-ledger/internal/module/coaAccount"
 	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
-	"core-ledger/internal/module/option"
 	"core-ledger/internal/module/permission"
 	"core-ledger/internal/module/role"
 	"core-ledger/internal/module/ruleCategory"
@@ -27,7 +26,7 @@ var HandlerModule = fx.Module("handler",
 		entries.NewEntriesHandler,
 		ruleCategory.NewRuleCategoryHandler,
 		ruleValue.NewRuleValueHandler,
-		option.NewOptionHandler,
+		// option.NewOptionHandler, // DEPRECATED: Không còn sử dụng model cũ
 		permission.NewPermissionHandler,
 		role.NewRoleHandler,
 		user.NewUserHandler,

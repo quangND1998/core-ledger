@@ -13,7 +13,7 @@ func main() {
 
 	seeders := []func(*gorm.DB) error{
 		seeder.SeederRuleCategories,
-		seeder.SeederAccountRuleTemplates,
+		seeder.SeederCoaAccountRules, // Phải chạy sau SeederRuleCategories vì cần rule categories
 		seeder.SeederUser,
 	}
 

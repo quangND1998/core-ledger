@@ -38,3 +38,16 @@ func (h *RuleCategoryHandler) List(c *gin.Context) {
 		Data: res,
 	})
 }
+
+// GetCoaAccountRules trả về cấu trúc rules để tạo mã COA account
+func (h *RuleCategoryHandler) GetCoaAccountRules(c *gin.Context) {
+	res, err := h.service.GetCoaAccountRules(c)
+	if err != nil {
+		h.logger.Error("Failed to get COA account rules", err)
+		ginhp.RespondError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+	c.JSON(http.StatusOK, dto.PreResponse{
+		Data: res,
+	})
+}

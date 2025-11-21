@@ -4,7 +4,6 @@ import (
 	coaaccount "core-ledger/internal/module/coaAccount"
 	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
-	"core-ledger/internal/module/option"
 	"core-ledger/internal/module/permission"
 	"core-ledger/internal/module/role"
 	"core-ledger/internal/module/ruleCategory"
@@ -24,10 +23,11 @@ var ServiceModule = fx.Module("service",
 		entries.NewEntriesService,
 		ruleCategory.NewRuleCateogySerive,
 		ruleValue.NewRuleCateogySerive,
-		option.NewOptionsSerive,
+		// option.NewOptionsSerive, // DEPRECATED: Không còn sử dụng model cũ
 		permission.NewPermissionService,
 		role.NewRoleService,
 		user.NewUserService,
 		coaaccount.NewRequestCoaAccountService,
+		coaaccount.NewRuleValidationService,
 	),
 )

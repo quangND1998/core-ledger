@@ -17,8 +17,8 @@ import (
 )
 
 type RuleValueHandler struct {
-	db     *gorm.DB
-	logger logger.CustomLogger
+	db               *gorm.DB
+	logger           logger.CustomLogger
 	service          *RuleCateogySerive
 	ruleValueRepo    repo.RuleValueRepo
 	ruleCategoryRepo repo.RuleCategoryRepo
@@ -71,7 +71,7 @@ func (h *RuleValueHandler) Create(c *gin.Context) {
 		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", map[string]string{"Data": "cannot be empty"})
 		return
 	}
-	if errs := h.ValidateUniqueRuleCode(req.Data, h.db); errs != nil {
+	if errs := h.ValidateUniqueRuleCode(req.Data, h.db, req.CategoryID); errs != nil {
 		ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Duplicate values", errs)
 		return
 	}
@@ -106,7 +106,7 @@ func (h *RuleValueHandler) Create(c *gin.Context) {
 	ginhp.RespondOK(c, "Update rule value successfully")
 }
 
-func (h *RuleValueHandler) ValidateUniqueRuleCode(data []*dto.RuleValueRequest, db *gorm.DB) map[string]string {
+func (h *RuleValueHandler) ValidateUniqueRuleCode(data []*dto.RuleValueRequest, db *gorm.DB, categoryID uint) map[string]string {
 	errors := map[string]string{}
 	for i, item := range data {
 		if item.IsDelete != nil && *item.IsDelete {
@@ -115,7 +115,7 @@ func (h *RuleValueHandler) ValidateUniqueRuleCode(data []*dto.RuleValueRequest, 
 		}
 
 		var count int64
-		query := db.Model(&model.RuleValue{}).Where("value = ? AND is_delete = false", item.Value)
+		query := db.Model(&model.RuleValue{}).Where("value = ? AND is_delete = false AND category_id = ?", item.Value, categoryID)
 		if item.ID != 0 {
 			query = query.Where("id != ?", item.ID)
 		}

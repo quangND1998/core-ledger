@@ -7,7 +7,7 @@ import (
 	"core-ledger/internal/module/entries"
 	"core-ledger/internal/module/excel"
 	"core-ledger/internal/module/middleware"
-	"core-ledger/internal/module/option"
+	// "core-ledger/internal/module/option" // DEPRECATED: Không còn sử dụng model cũ
 	"core-ledger/internal/module/permission"
 	"core-ledger/internal/module/role"
 	"core-ledger/internal/module/ruleCategory"
@@ -39,7 +39,7 @@ type RouterParams struct {
 	EntriesHandler      *entries.EntriesHandler
 	RuleCategoryHandler *ruleCategory.RuleCategoryHandler
 	RuleValueHander     *ruleValue.RuleValueHandler
-	OptionHandler       *option.OptionHandler
+	// OptionHandler       *option.OptionHandler // DEPRECATED: Không còn sử dụng model cũ
 	PermissionHandler   *permission.PermissionHandler
 	RoleHandler         *role.RoleHandler
 	UserHandler         *user.UserHandler
@@ -124,12 +124,12 @@ func SetupAllRoutes(params RouterParams) {
 	userAuthMiddleware := user.UserAuthMiddleware(params.UserRepo)
 	transactions.SetupRoutes(protected, params.TransactionHandler)
 	excel.SetupRoutes(protected, params.ExcelHandler)
-	// coaaccount.SetupRoutes(protected, params.CoaAccountHandler, params.CoaRequestHandler, userAuthMiddleware)
-	coaaccount.SetupRoutes(protected, params.CoaAccountHandler, params.CoaRequestHandler)
+	coaaccount.SetupRoutes(protected, params.CoaAccountHandler, params.CoaRequestHandler, userAuthMiddleware)
+	// coaaccount.SetupRoutes(protected, params.CoaAccountHandler, params.CoaRequestHandler)
 	entries.SetupRoutes(protected, params.EntriesHandler)
 	ruleCategory.SetupRoutes(protected, params.RuleCategoryHandler)
 	ruleValue.SetupRoutes(protected, params.RuleValueHander)
-	option.SetupRoutes(protected, params.OptionHandler)
+	// option.SetupRoutes(protected, params.OptionHandler) // DEPRECATED: Không còn sử dụng model cũ
 	permission.SetupRoutes(protected, params.PermissionHandler, userAuthMiddleware)
 	role.SetupRoutes(protected, params.RoleHandler, userAuthMiddleware)
 
