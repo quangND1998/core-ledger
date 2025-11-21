@@ -2,20 +2,25 @@ package coaaccount
 
 import (
 	"context"
+	"core-ledger/internal/module/ruleCategory"
 	"core-ledger/model/core-ledger"
 	"core-ledger/model/dto"
 	"core-ledger/pkg/logger"
 	"core-ledger/pkg/repo"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
 
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 type RequestCoaAccountService struct {
-	logger        logger.CustomLogger
-	db            *gorm.DB
-	coAccountRepo repo.CoAccountRepo
+	logger           logger.CustomLogger
+	db               *gorm.DB
+	coAccountRepo    repo.CoAccountRepo
+	ruleCategoryService *ruleCategory.RuleCateogySerive
 }
 
 type DuplicateInfo struct {
@@ -24,11 +29,12 @@ type DuplicateInfo struct {
 	DuplicateIn string `json:"duplicate_in"` // "request" hoặc "core"
 }
 
-func NewRequestCoaAccountService(db *gorm.DB, coAccountRepo repo.CoAccountRepo) *RequestCoaAccountService {
+func NewRequestCoaAccountService(db *gorm.DB, coAccountRepo repo.CoAccountRepo, ruleCategoryService *ruleCategory.RuleCateogySerive) *RequestCoaAccountService {
 	return &RequestCoaAccountService{
-		logger:        logger.NewSystemLog("RequestCoaAccountService"),
-		db:            db,
-		coAccountRepo: coAccountRepo,
+		logger:              logger.NewSystemLog("RequestCoaAccountService"),
+		db:                  db,
+		coAccountRepo:       coAccountRepo,
+		ruleCategoryService: ruleCategoryService,
 	}
 }
 
@@ -138,10 +144,10 @@ func (s *RequestCoaAccountService) GetList(ctx context.Context, filter *dto.List
 		return nil, err
 	}
 
-	// Convert to response DTOs
+	// Convert to response DTOs (không parse code_analysis để tối ưu performance)
 	items := make([]*dto.RequestCoaAccountResponse, 0, len(requests))
 	for _, req := range requests {
-		item, err := s.toResponseDTO(&req)
+		item, err := s.toResponseDTO(ctx, &req, false) // false = không parse code_analysis
 		if err != nil {
 			s.logger.Error("Failed to convert request to DTO", err)
 			continue
@@ -183,7 +189,7 @@ func (s *RequestCoaAccountService) GetByID(ctx context.Context, id uint64) (*dto
 		return nil, err
 	}
 
-	return s.toResponseDTO(&request)
+	return s.toResponseDTO(ctx, &request, true) // true = có parse code_analysis
 }
 
 // GetRequestByID returns the model (not DTO)
@@ -205,8 +211,222 @@ func (s *RequestCoaAccountService) Update(ctx context.Context, request *model.Re
 	return s.db.WithContext(ctx).Save(request).Error
 }
 
+// parseCode phân tích code dựa trên rules
+func (s *RequestCoaAccountService) parseCode(ctx context.Context, code string) (*dto.CodeAnalysis, error) {
+	if code == "" {
+		return nil, nil
+	}
+
+	// Kiểm tra ruleCategoryService
+	if s.ruleCategoryService == nil {
+		return nil, fmt.Errorf("ruleCategoryService is nil")
+	}
+
+	// Tạo gin context từ context để gọi GetCoaAccountRules
+	ginCtx, _ := gin.CreateTestContext(nil)
+	// Tạo request mới với context
+	req, _ := http.NewRequestWithContext(ctx, "GET", "/", nil)
+	ginCtx.Request = req
+
+	// Lấy rules từ service
+	rules, err := s.ruleCategoryService.GetCoaAccountRules(ginCtx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rules: %w", err)
+	}
+
+	// Tìm type code (phần đầu trước separator đầu tiên)
+	var matchedType *dto.CoaAccountRuleTypeResp
+	typeCode := ""
+	typeSeparator := ""
+
+	for i := range rules {
+		ruleType := rules[i]
+		// Thử tách code theo separator của type
+		if ruleType.Separator != "" && strings.HasPrefix(code, ruleType.Code+ruleType.Separator) {
+			typeCode = ruleType.Code
+			typeSeparator = ruleType.Separator
+			matchedType = &rules[i]
+			break
+		}
+	}
+
+	if matchedType == nil {
+		return &dto.CodeAnalysis{
+			Code:      code,
+			TypeCode:  "",
+			GroupCode: "",
+			FormData:  nil,
+			IsValid:   false,
+			Error:     "Không tìm thấy type code phù hợp",
+		}, nil
+	}
+
+	// Tách phần còn lại sau type code
+	remainingCode := strings.TrimPrefix(code, typeCode+typeSeparator)
+
+	// Tìm group code
+	var matchedGroup *dto.CoaAccountRuleGroupResp
+	groupCode := ""
+	groupSeparator := ""
+
+	// Trường hợp 1: Type có groups (ASSET, LIAB, etc.)
+	if len(matchedType.Groups) > 0 {
+		// Tìm group trong code
+		for i := range matchedType.Groups {
+			group := matchedType.Groups[i]
+			if group.Separator != "" && strings.HasPrefix(remainingCode, group.Code+group.Separator) {
+				groupCode = group.Code
+				groupSeparator = group.Separator
+				matchedGroup = &matchedType.Groups[i]
+				break
+			}
+		}
+
+		// Trường hợp 2: Không tìm thấy group trong code nhưng type có group "KIND" (REV, EXP)
+		// Đây là group ảo cho type có steps trực tiếp, có thể không có group code trong string
+		if matchedGroup == nil {
+			for i := range matchedType.Groups {
+				group := matchedType.Groups[i]
+				// Nếu là group KIND (group ảo cho REV/EXP) và còn code để parse
+				if group.Code == "KIND" && remainingCode != "" {
+					// Kiểm tra xem có group code prefix không
+					if group.Separator != "" && strings.HasPrefix(remainingCode, group.Code+group.Separator) {
+						// Có group code prefix
+						groupCode = group.Code
+						groupSeparator = group.Separator
+						matchedGroup = &matchedType.Groups[i]
+						break
+					} else if len(group.Steps) > 0 {
+						// Không có group code prefix, parse trực tiếp với steps
+						groupCode = group.Code
+						groupSeparator = "" // Không có separator vì không có group code trong string
+						matchedGroup = &matchedType.Groups[i]
+						break
+					}
+				}
+			}
+		}
+	}
+
+	if matchedGroup == nil {
+		return &dto.CodeAnalysis{
+			Code:      code,
+			TypeCode:  typeCode,
+			TypeName:  matchedType.Name,
+			GroupCode: "",
+			FormData:  nil,
+			IsValid:   false,
+			Error:     "Không tìm thấy group code phù hợp",
+		}, nil
+	}
+
+	// Tách phần còn lại sau group code (nếu có group code trong string)
+	if groupSeparator != "" && strings.HasPrefix(remainingCode, groupCode+groupSeparator) {
+		remainingCode = strings.TrimPrefix(remainingCode, groupCode+groupSeparator)
+	}
+
+	// Parse các steps và lưu giá trị đã chọn
+	stepValues := make(map[int]string) // step_order -> value
+	currentCode := remainingCode
+
+	// Tách các step theo separator của từng step
+	for _, step := range matchedGroup.Steps {
+		if currentCode == "" {
+			break
+		}
+
+		stepValue := ""
+		stepSeparator := step.Separator
+
+		if stepSeparator != "" && strings.Contains(currentCode, stepSeparator) {
+			// Tách theo separator
+			parts := strings.SplitN(currentCode, stepSeparator, 2)
+			stepValue = parts[0]
+			if len(parts) > 1 {
+				currentCode = parts[1]
+			} else {
+				currentCode = ""
+			}
+		} else {
+			// Step cuối cùng hoặc không có separator
+			stepValue = currentCode
+			currentCode = ""
+		}
+
+		stepValues[step.StepOrder] = stepValue
+	}
+
+	// Build form data với cấu trúc rules và giá trị đã chọn
+	formSteps := []dto.CodeFormStep{}
+	for _, step := range matchedGroup.Steps {
+		currentValue := stepValues[step.StepOrder]
+		currentValueName := ""
+
+		// Nếu là SELECT, tìm value name từ values
+		if step.Type == "SELECT" && len(step.Values) > 0 && currentValue != "" {
+			for _, val := range step.Values {
+				if val.Value == currentValue {
+					currentValueName = val.Name
+					break
+				}
+			}
+		}
+
+		formStep := dto.CodeFormStep{
+			StepID:           step.StepID,
+			StepOrder:        step.StepOrder,
+			Type:             step.Type,
+			Label:            step.Label,
+			CategoryCode:     step.CategoryCode,
+			InputCode:        step.InputCode,
+			InputType:        step.InputType,
+			Separator:        step.Separator,
+			Values:           step.Values, // Tất cả options
+			CurrentValue:     currentValue,
+			CurrentValueName: currentValueName,
+		}
+
+		formSteps = append(formSteps, formStep)
+	}
+
+	// Build selected group với đầy đủ steps và current values
+	selectedGroup := dto.CodeFormGroup{
+		ID:        matchedGroup.ID,
+		Code:      matchedGroup.Code,
+		Name:      matchedGroup.Name,
+		InputType: matchedGroup.InputType,
+		Separator: matchedGroup.Separator,
+		Steps:     formSteps, // Steps với current values đã được parse
+	}
+
+	// Build type với group đã chọn
+	formType := dto.CodeFormType{
+		ID:        matchedType.ID,
+		Code:      matchedType.Code,
+		Name:      matchedType.Name,
+		Separator: matchedType.Separator,
+		Group:     selectedGroup,
+	}
+
+	formData := &dto.CodeFormData{
+		Type:  formType,
+		Group: selectedGroup,
+	}
+
+	return &dto.CodeAnalysis{
+		Code:      code,
+		TypeCode:  typeCode,
+		TypeName:  matchedType.Name,
+		GroupCode: groupCode,
+		GroupName: matchedGroup.Name,
+		FormData:  formData,
+		IsValid:   true,
+	}, nil
+}
+
 // toResponseDTO converts model to response DTO
-func (s *RequestCoaAccountService) toResponseDTO(req *model.RequestCoaAccount) (*dto.RequestCoaAccountResponse, error) {
+// includeCodeAnalysis: nếu true thì sẽ parse code_analysis (dùng cho GetDetail), false thì bỏ qua (dùng cho GetList để tối ưu)
+func (s *RequestCoaAccountService) toResponseDTO(ctx context.Context, req *model.RequestCoaAccount, includeCodeAnalysis bool) (*dto.RequestCoaAccountResponse, error) {
 	// Parse data from JSON
 	var dataMap map[string]interface{}
 	dataBytes := []byte(req.Data)
@@ -230,6 +450,18 @@ func (s *RequestCoaAccountService) toResponseDTO(req *model.RequestCoaAccount) (
 		CoaAccount:    req.CoaAccount,
 		Maker:         req.Maker,
 		Checker:       req.Checker,
+	}
+
+	// Chỉ phân tích code nếu includeCodeAnalysis = true (để tối ưu performance cho GetList)
+	if includeCodeAnalysis {
+		if code, ok := dataMap["code"].(string); ok && code != "" {
+			codeAnalysis, err := s.parseCode(ctx, code)
+			if err != nil {
+				s.logger.Error("Failed to parse code", err)
+			} else if codeAnalysis != nil {
+				response.CodeAnalysis = codeAnalysis
+			}
+		}
 	}
 
 	return response, nil

@@ -103,6 +103,61 @@ type ListRequestCoaAccountFilter struct {
 	Search        *string `form:"search"` // Search by account_no, name, code
 }
 
+// CodeAnalysis phân tích code từ rules - format để frontend tự generate form
+type CodeAnalysis struct {
+	Code      string                    `json:"code"`
+	TypeCode  string                    `json:"type_code"`
+	TypeName  string                    `json:"type_name,omitempty"`
+	GroupCode string                    `json:"group_code"`
+	GroupName string                    `json:"group_name,omitempty"`
+	// Rules structure với giá trị đã chọn - frontend có thể dùng để render form
+	FormData  *CodeFormData             `json:"form_data,omitempty"`
+	IsValid   bool                      `json:"is_valid"`
+	Error     string                    `json:"error,omitempty"`
+}
+
+// CodeFormData cấu trúc form data để frontend render
+// Format đơn giản: type -> group (đã chọn) -> steps với current_value
+type CodeFormData struct {
+	Type  CodeFormType  `json:"type"`  // Type với group đã được chọn
+	Group CodeFormGroup `json:"group"` // Group đã được chọn với steps đầy đủ
+}
+
+// CodeFormType type với group đã chọn
+type CodeFormType struct {
+	ID        uint64         `json:"id"`
+	Code      string         `json:"code"`
+	Name      string         `json:"name"`
+	Separator string         `json:"separator"`
+	Group     CodeFormGroup  `json:"group"` // Group đã được chọn
+}
+
+// CodeFormGroup group với giá trị đã chọn
+type CodeFormGroup struct {
+	ID        uint64         `json:"id"`
+	Code      string         `json:"code"`
+	Name      string         `json:"name"`
+	InputType string         `json:"input_type"`
+	Separator string         `json:"separator"`
+	Selected  bool           `json:"selected"` // Đánh dấu group này đã được chọn
+	Steps     []CodeFormStep `json:"steps"`
+}
+
+// CodeFormStep step với giá trị đã chọn và options
+type CodeFormStep struct {
+	StepID      uint64              `json:"step_id"`
+	StepOrder   int                 `json:"step_order"`
+	Type        string              `json:"type"` // SELECT hoặc TEXT
+	Label       string              `json:"label,omitempty"`
+	CategoryCode string             `json:"category_code,omitempty"`
+	InputCode   string              `json:"input_code,omitempty"`
+	InputType   string              `json:"input_type,omitempty"`
+	Separator   string              `json:"separator"`
+	Values      []RuleValueResp     `json:"values,omitempty"` // Options cho SELECT
+	CurrentValue string             `json:"current_value,omitempty"` // Giá trị hiện tại đã chọn
+	CurrentValueName string         `json:"current_value_name,omitempty"` // Tên của giá trị hiện tại
+}
+
 // RequestCoaAccountResponse response DTO
 type RequestCoaAccountResponse struct {
 	ID            uint64                 `json:"id"`
@@ -122,6 +177,9 @@ type RequestCoaAccountResponse struct {
 	CoaAccount *model.CoaAccount `json:"coa_account,omitempty"`
 	Maker      *model.User       `json:"maker,omitempty"`
 	Checker    *model.User       `json:"checker,omitempty"`
+
+	// Code analysis
+	CodeAnalysis *CodeAnalysis `json:"code_analysis,omitempty"`
 }
 
 // ToModel converts DTO to model
