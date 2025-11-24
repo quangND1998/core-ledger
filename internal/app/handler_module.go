@@ -12,6 +12,7 @@ import (
 	"core-ledger/internal/module/role"
 	"core-ledger/internal/module/ruleCategory"
 	"core-ledger/internal/module/ruleValue"
+	"core-ledger/internal/module/swagger"
 	"core-ledger/internal/module/transactions"
 	"core-ledger/internal/module/user"
 
@@ -32,6 +33,7 @@ var HandlerModule = fx.Module("handler",
 		user.NewUserHandler,
 		user.NewAuthHandler,
 		coaaccount.NewRequestCoaAccountHandler,
+		swagger.NewSwaggerHandler,
 	// accounthandler.NewAccountHandler,
 	// authhandler.NewHandler,
 	// wallets.NewWalletHandler,

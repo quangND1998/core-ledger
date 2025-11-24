@@ -39,6 +39,15 @@ func (h *RuleCategoryHandler) List(c *gin.Context) {
 	})
 }
 
+// GetCoaAccountRules godoc
+// @Summary Get COA account rules
+// @Description Get all COA account rules structure with types, groups, and steps for generating account codes
+// @Tags rule-category
+// @Accept json
+// @Produce json
+// @Success 200 {object} dto.PreResponse{data=[]dto.CoaAccountRuleTypeResp}
+// @Failure 500 {object} dto.PreResponse
+// @Router /rule-category/coa-rules [get]
 // GetCoaAccountRules trả về cấu trúc rules để tạo mã COA account
 func (h *RuleCategoryHandler) GetCoaAccountRules(c *gin.Context) {
 	res, err := h.service.GetCoaAccountRules(c)

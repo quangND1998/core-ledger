@@ -36,6 +36,24 @@ func NewRequestCoaAccountHandler(service *RequestCoaAccountService, db *gorm.DB,
 	}
 }
 
+// GetList godoc
+// @Summary Get list of COA account requests
+// @Description Get paginated list of COA account requests with filters
+// @Tags request-coa-accounts
+// @Accept json
+// @Produce json
+// @Param request_type query string false "Request type (CREATE, EDIT)"
+// @Param request_status query string false "Request status (PENDING, APPROVED, REJECTED)"
+// @Param maker_id query int false "Maker ID"
+// @Param checker_id query int false "Checker ID"
+// @Param coa_account_id query int false "COA Account ID"
+// @Param search query string false "Search by account_no, name, code"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Items per page" default(10)
+// @Success 200 {object} dto.PreResponse
+// @Failure 400 {object} dto.PreResponse
+// @Failure 500 {object} dto.PreResponse
+// @Router /request-coa-accounts [get]
 // GetList handles GET /request-coa-accounts
 func (h *RequestCoaAccountHandler) GetList(c *gin.Context) {
 	var filter dto.ListRequestCoaAccountFilter
@@ -59,6 +77,18 @@ func (h *RequestCoaAccountHandler) GetList(c *gin.Context) {
 	})
 }
 
+// GetDetail godoc
+// @Summary Get COA account request detail
+// @Description Get detailed information of a specific COA account request
+// @Tags request-coa-accounts
+// @Accept json
+// @Produce json
+// @Param id path int true "Request ID"
+// @Success 200 {object} dto.PreResponse{data=dto.RequestCoaAccountResponse}
+// @Failure 400 {object} dto.PreResponse
+// @Failure 404 {object} dto.PreResponse
+// @Failure 500 {object} dto.PreResponse
+// @Router /request-coa-accounts/{id} [get]
 // GetDetail handles GET /request-coa-accounts/:id
 func (h *RequestCoaAccountHandler) GetDetail(c *gin.Context) {
 	id, err := utils.ParseIntIdParam(c.Param("id"))
@@ -82,6 +112,20 @@ func (h *RequestCoaAccountHandler) GetDetail(c *gin.Context) {
 	})
 }
 
+// Create godoc
+// @Summary Create COA account request
+// @Description Create a new COA account request (CREATE or EDIT type). Request will be created with PENDING status and requires approval.
+// @Tags request-coa-accounts
+// @Accept json
+// @Produce json
+// @Param request body dto.RequestCoaAccountCreateRequestWithValidation true "Create request (request_type=CREATE)" example({"request_type":"CREATE","account_data":{"code":"ASSET","account_no":"ASSET:VND.Cobo.Details","name":"Asset Account","type":"ASSET","currency":"VND","status":"ACTIVE"}})
+// @Param request body dto.RequestCoaAccountEditRequestWithValidation true "Edit request (request_type=EDIT)" example({"request_type":"EDIT","account_data":{"account_id":1,"account_no":"ASSET:VND.Cobo.NewDetails","name":"Updated Account Name","status":"ACTIVE"}})
+// @Success 200 {object} ginhp.Response
+// @Failure 400 {object} dto.PreResponse
+// @Failure 401 {object} dto.PreResponse
+// @Failure 422 {object} dto.PreResponse
+// @Failure 500 {object} dto.PreResponse
+// @Router /request-coa-accounts [post]
 // Create handles POST /request-coa-accounts
 // Theo luồng: Check duplicate → Tạo request với status PENDING
 func (h *RequestCoaAccountHandler) Create(c *gin.Context) {
@@ -225,6 +269,21 @@ func (h *RequestCoaAccountHandler) Create(c *gin.Context) {
 	ginhp.RespondOK(c, "Tạo request thành công. Đang chờ phê duyệt.")
 }
 
+// Update godoc
+// @Summary Update COA account request
+// @Description Update a COA account request. Only allowed for PENDING requests with type CREATE or REJECTED requests.
+// @Tags request-coa-accounts
+// @Accept json
+// @Produce json
+// @Param id path int true "Request ID"
+// @Param request body dto.RequestCoaAccountCreateRequestWithValidation true "Update CREATE request (for PENDING requests)"
+// @Param request body dto.RequestCoaAccountUpdateRequestWithValidation true "Update REJECTED request (only account_no, status, description)"
+// @Success 200 {object} ginhp.Response
+// @Failure 400 {object} dto.PreResponse
+// @Failure 404 {object} dto.PreResponse
+// @Failure 422 {object} dto.PreResponse
+// @Failure 500 {object} dto.PreResponse
+// @Router /request-coa-accounts/{id} [put]
 // Update handles PUT /request-coa-accounts/:id
 // Cho phép update request có status PENDING với request_type = CREATE
 // Hoặc request có status REJECTED
@@ -379,6 +438,20 @@ func (h *RequestCoaAccountHandler) Update(c *gin.Context) {
 	ginhp.RespondOK(c, "Cập nhật request thành công. Đang chờ phê duyệt lại.")
 }
 
+// Approve godoc
+// @Summary Approve COA account request
+// @Description Approve a pending COA account request. This will create or update the COA account in the core system.
+// @Tags request-coa-accounts
+// @Accept json
+// @Produce json
+// @Param id path int true "Request ID"
+// @Param request body dto.RequestCoaAccountApproveRequest true "Approve request"
+// @Success 200 {object} ginhp.Response
+// @Failure 400 {object} dto.PreResponse
+// @Failure 401 {object} dto.PreResponse
+// @Failure 404 {object} dto.PreResponse
+// @Failure 500 {object} dto.PreResponse
+// @Router /request-coa-accounts/{id}/approve [post]
 // Approve handles POST /request-coa-accounts/:id/approve
 func (h *RequestCoaAccountHandler) Approve(c *gin.Context) {
 	id, err := utils.ParseIntIdParam(c.Param("id"))
@@ -426,6 +499,21 @@ func (h *RequestCoaAccountHandler) Approve(c *gin.Context) {
 	ginhp.RespondOK(c, "Phê duyệt request thành công")
 }
 
+// Reject godoc
+// @Summary Reject COA account request
+// @Description Reject a pending COA account request with a reason
+// @Tags request-coa-accounts
+// @Accept json
+// @Produce json
+// @Param id path int true "Request ID"
+// @Param request body dto.RequestCoaAccountRejectRequest true "Reject request"
+// @Success 200 {object} ginhp.Response
+// @Failure 400 {object} dto.PreResponse
+// @Failure 401 {object} dto.PreResponse
+// @Failure 404 {object} dto.PreResponse
+// @Failure 422 {object} dto.PreResponse
+// @Failure 500 {object} dto.PreResponse
+// @Router /request-coa-accounts/{id}/reject [post]
 // Reject handles POST /request-coa-accounts/:id/reject
 func (h *RequestCoaAccountHandler) Reject(c *gin.Context) {
 	id, err := utils.ParseIntIdParam(c.Param("id"))

@@ -13,6 +13,7 @@ import (
 	"core-ledger/internal/module/role"
 	"core-ledger/internal/module/ruleCategory"
 	"core-ledger/internal/module/ruleValue"
+	"core-ledger/internal/module/swagger"
 	"core-ledger/internal/module/transactions"
 	"core-ledger/internal/module/user"
 	"core-ledger/model/dto"
@@ -46,6 +47,7 @@ type RouterParams struct {
 	UserHandler       *user.UserHandler
 	AuthHandler       *user.AuthHandler
 	CoaRequestHandler *coaaccount.RequestCoaAccountHandler
+	SwaggerHandler    *swagger.SwaggerHandler
 	UserRepo          repo.UserRepo
 
 	// Add more handlers here as needed:
@@ -133,6 +135,9 @@ func SetupAllRoutes(params RouterParams) {
 	// option.SetupRoutes(protected, params.OptionHandler) // DEPRECATED: Không còn sử dụng model cũ
 	permission.SetupRoutes(protected, params.PermissionHandler, userAuthMiddleware)
 	role.SetupRoutes(protected, params.RoleHandler, userAuthMiddleware)
+	
+	// Swagger documentation routes (public - no authentication required)
+	swagger.SetupRoutes(protected, params.SwaggerHandler)
 
 	// Auth routes (public - no authentication required)
 	user.SetupAuthRoutes(protected, params.AuthHandler)

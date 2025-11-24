@@ -1,0 +1,2784 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Core Ledger API",
+    "description": "API documentation for Core Ledger system - COA Account Management",
+    "version": "1.0.0",
+    "contact": {
+      "name": "API Support",
+      "email": "support@core-ledger.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000/api/v1",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.core-ledger.com/api/v1",
+      "description": "Production server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "rule-category",
+      "description": "Rule Category APIs for COA account rules"
+    },
+    {
+      "name": "request-coa-accounts",
+      "description": "COA Account Request management APIs"
+    },
+    {
+      "name": "coa-accounts",
+      "description": "COA Account management APIs"
+    },
+    {
+      "name": "health",
+      "description": "Health check endpoints"
+    },
+    {
+      "name": "auth",
+      "description": "Authentication APIs"
+    },
+    {
+      "name": "users",
+      "description": "User management APIs"
+    },
+    {
+      "name": "roles",
+      "description": "Role management APIs"
+    },
+    {
+      "name": "permissions",
+      "description": "Permission management APIs"
+    },
+    {
+      "name": "transactions",
+      "description": "Transaction APIs"
+    },
+    {
+      "name": "entries",
+      "description": "Entry APIs"
+    },
+    {
+      "name": "excel",
+      "description": "Excel import/export APIs"
+    },
+    {
+      "name": "rule-value",
+      "description": "Rule Value APIs"
+    },
+    {
+      "name": "constants",
+      "description": "Constants APIs"
+    },
+    {
+      "name": "swagger",
+      "description": "Swagger documentation endpoints"
+    }
+  ],
+  "paths": {
+    "/rule-category/coa-rules": {
+      "get": {
+        "tags": ["rule-category"],
+        "summary": "Get COA account rules",
+        "description": "Get all COA account rules structure with types, groups, and steps for generating account codes",
+        "operationId": "getCoaAccountRules",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoaAccountRulesResponse"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 1,
+                      "code": "ASSET",
+                      "name": "Asset",
+                      "separator": ":",
+                      "groups": [
+                        {
+                          "id": 1,
+                          "code": "FLOAT",
+                          "name": "Float",
+                          "input_type": "SELECT",
+                          "separator": ":",
+                          "steps": [
+                            {
+                              "step_id": 1,
+                              "step_order": 1,
+                              "type": "SELECT",
+                              "label": "",
+                              "category_code": "CURRENCY",
+                              "values": [
+                                {
+                                  "id": 22,
+                                  "name": "VND",
+                                  "value": "VND"
+                                },
+                                {
+                                  "id": 23,
+                                  "name": "USD",
+                                  "value": "USD"
+                                }
+                              ],
+                              "input_type": "SELECT",
+                              "separator": "."
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "error": null
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/request-coa-accounts": {
+      "get": {
+        "tags": ["request-coa-accounts"],
+        "summary": "Get list of COA account requests",
+        "description": "Get paginated list of COA account requests with filters",
+        "operationId": "getRequestCoaAccountList",
+        "parameters": [
+          {
+            "name": "request_type",
+            "in": "query",
+            "description": "Request type filter",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["CREATE", "EDIT"]
+            }
+          },
+          {
+            "name": "request_status",
+            "in": "query",
+            "description": "Request status filter",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["PENDING", "APPROVED", "REJECTED"]
+            }
+          },
+          {
+            "name": "maker_id",
+            "in": "query",
+            "description": "Maker user ID",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "checker_id",
+            "in": "query",
+            "description": "Checker user ID",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "coa_account_id",
+            "in": "query",
+            "description": "COA Account ID",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "description": "Search by account_no, name, code",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Items per page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int64",
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestCoaAccountListResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["request-coa-accounts"],
+        "summary": "Create COA account request",
+        "description": "Create a new COA account request (CREATE or EDIT type). Request will be created with PENDING status and requires approval.",
+        "operationId": "createRequestCoaAccount",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RequestCoaAccountCreateRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RequestCoaAccountEditRequest"
+                  }
+                ]
+              },
+              "examples": {
+                "create": {
+                  "summary": "Create new account request",
+                  "value": {
+                    "request_type": "CREATE",
+                    "account_data": {
+                      "code": "ASSET",
+                      "account_no": "ASSET:VND.Cobo.Details",
+                      "name": "Asset Account",
+                      "type": "ASSET",
+                      "currency": "VND",
+                      "status": "ACTIVE",
+                      "provider": "Cobo",
+                      "description": "Asset account description"
+                    }
+                  }
+                },
+                "edit": {
+                  "summary": "Edit existing account request",
+                  "value": {
+                    "request_type": "EDIT",
+                    "account_data": {
+                      "account_id": 1,
+                      "account_no": "ASSET:VND.Cobo.NewDetails",
+                      "name": "Updated Account Name",
+                      "status": "ACTIVE",
+                      "description": "Updated description"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request (duplicate account or invalid data)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DuplicateResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/request-coa-accounts/{id}": {
+      "get": {
+        "tags": ["request-coa-accounts"],
+        "summary": "Get COA account request detail",
+        "description": "Get detailed information of a specific COA account request",
+        "operationId": "getRequestCoaAccountDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Request ID",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestCoaAccountDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["request-coa-accounts"],
+        "summary": "Update COA account request",
+        "description": "Update a COA account request. Only allowed for PENDING requests with type CREATE or REJECTED requests.",
+        "operationId": "updateRequestCoaAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Request ID",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/RequestCoaAccountCreateRequest"
+                  },
+                  {
+                    "$ref": "#/components/schemas/RequestCoaAccountUpdateRequest"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/request-coa-accounts/{id}/approve": {
+      "post": {
+        "tags": ["request-coa-accounts"],
+        "summary": "Approve COA account request",
+        "description": "Approve a pending COA account request. This will create or update the COA account in the core system.",
+        "operationId": "approveRequestCoaAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Request ID",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestCoaAccountApproveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request approved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/request-coa-accounts/{id}/reject": {
+      "post": {
+        "tags": ["request-coa-accounts"],
+        "summary": "Reject COA account request",
+        "description": "Reject a pending COA account request with a reason",
+        "operationId": "rejectRequestCoaAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Request ID",
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestCoaAccountRejectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Request rejected successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Request not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rule-category/list": {
+      "get": {
+        "tags": ["rule-category"],
+        "summary": "Get list of rule categories",
+        "description": "Get list of all rule categories",
+        "operationId": "getRuleCategoryList",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coa-accounts/list": {
+      "get": {
+        "tags": ["coa-accounts"],
+        "summary": "Get list of COA accounts",
+        "description": "Get paginated list of COA accounts with filters",
+        "operationId": "getCoaAccountList",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "schema": {"type": "string"}
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {"type": "array", "items": {"type": "string"}}
+          },
+          {
+            "name": "types",
+            "in": "query",
+            "schema": {"type": "array", "items": {"type": "string"}}
+          },
+          {
+            "name": "currency",
+            "in": "query",
+            "schema": {"type": "array", "items": {"type": "string"}}
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {"type": "integer", "format": "int64"}
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coa-accounts/{id}": {
+      "get": {
+        "tags": ["coa-accounts"],
+        "summary": "Get COA account detail",
+        "description": "Get detailed information of a specific COA account",
+        "operationId": "getCoaAccountDetail",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coa-accounts": {
+      "post": {
+        "tags": ["coa-accounts"],
+        "summary": "Create COA account",
+        "description": "Create a new COA account",
+        "operationId": "createCoaAccount",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coa-accounts/{account_no}/exist": {
+      "post": {
+        "tags": ["coa-accounts"],
+        "summary": "Check if account number exists",
+        "description": "Check if a COA account number already exists",
+        "operationId": "checkAccountNoExists",
+        "parameters": [
+          {
+            "name": "account_no",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "string"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coa-accounts/{id}/update": {
+      "put": {
+        "tags": ["coa-accounts"],
+        "summary": "Update COA account",
+        "description": "Update an existing COA account",
+        "operationId": "updateCoaAccount",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coa-accounts/update-status": {
+      "post": {
+        "tags": ["coa-accounts"],
+        "summary": "Update COA account status",
+        "description": "Update status of COA accounts",
+        "operationId": "updateCoaAccountStatus",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coa-accounts/export": {
+      "get": {
+        "tags": ["coa-accounts"],
+        "summary": "Export COA accounts",
+        "description": "Export COA accounts to file",
+        "operationId": "exportCoaAccounts",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transactions": {
+      "get": {
+        "tags": ["transactions"],
+        "summary": "Get list of transactions",
+        "description": "Get paginated list of transactions with filters",
+        "operationId": "getTransactionList",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {"type": "integer", "format": "int64"}
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entries/list": {
+      "get": {
+        "tags": ["entries"],
+        "summary": "Get list of entries",
+        "description": "Get paginated list of entries",
+        "operationId": "getEntryList",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {"type": "integer", "format": "int64"}
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/excel/import/co-accounts": {
+      "post": {
+        "tags": ["excel"],
+        "summary": "Import COA accounts from Excel",
+        "description": "Import COA accounts from Excel file",
+        "operationId": "importCoAccounts",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rule-value/list": {
+      "get": {
+        "tags": ["rule-value"],
+        "summary": "Get list of rule values",
+        "description": "Get list of all rule values",
+        "operationId": "getRuleValueList",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rule-value": {
+      "post": {
+        "tags": ["rule-value"],
+        "summary": "Create rule value",
+        "description": "Create a new rule value",
+        "operationId": "createRuleValue",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "User login",
+        "description": "Authenticate user and get access token",
+        "operationId": "login",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "User registration",
+        "description": "Register a new user",
+        "operationId": "register",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registration successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Refresh access token",
+        "description": "Refresh access token using refresh token",
+        "operationId": "refreshToken",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refresh_token": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "User logout",
+        "description": "Logout user and invalidate tokens",
+        "operationId": "logout",
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/list": {
+      "get": {
+        "tags": ["users"],
+        "summary": "Get list of users",
+        "description": "Get paginated list of users",
+        "operationId": "getUserList",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "tags": ["users"],
+        "summary": "Get user detail",
+        "description": "Get detailed information of a specific user",
+        "operationId": "getUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["users"],
+        "summary": "Update user",
+        "description": "Update user information",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "post": {
+        "tags": ["users"],
+        "summary": "Create user",
+        "description": "Create a new user",
+        "operationId": "createUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}/roles": {
+      "post": {
+        "tags": ["users"],
+        "summary": "Sync user roles",
+        "description": "Synchronize roles for a user",
+        "operationId": "syncUserRoles",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}/permissions": {
+      "post": {
+        "tags": ["users"],
+        "summary": "Sync user permissions",
+        "description": "Synchronize permissions for a user",
+        "operationId": "syncUserPermissions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/give-permission": {
+      "post": {
+        "tags": ["users"],
+        "summary": "Give permission to user",
+        "description": "Give a permission to a user",
+        "operationId": "givePermissionToUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/revoke-permission": {
+      "post": {
+        "tags": ["users"],
+        "summary": "Revoke permission from user",
+        "description": "Revoke a permission from a user",
+        "operationId": "revokePermissionFromUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/assign-role": {
+      "post": {
+        "tags": ["users"],
+        "summary": "Assign role to user",
+        "description": "Assign a role to a user",
+        "operationId": "assignRoleToUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/remove-role": {
+      "post": {
+        "tags": ["users"],
+        "summary": "Remove role from user",
+        "description": "Remove a role from a user",
+        "operationId": "removeRoleFromUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles/list": {
+      "get": {
+        "tags": ["roles"],
+        "summary": "Get list of roles",
+        "description": "Get list of all roles",
+        "operationId": "getRoleList",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles/{id}": {
+      "get": {
+        "tags": ["roles"],
+        "summary": "Get role detail",
+        "description": "Get detailed information of a specific role",
+        "operationId": "getRole",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["roles"],
+        "summary": "Update role",
+        "description": "Update role information",
+        "operationId": "updateRole",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["roles"],
+        "summary": "Delete role",
+        "description": "Delete a role",
+        "operationId": "deleteRole",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles": {
+      "post": {
+        "tags": ["roles"],
+        "summary": "Create role",
+        "description": "Create a new role",
+        "operationId": "createRole",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles/give-permission": {
+      "post": {
+        "tags": ["roles"],
+        "summary": "Give permission to role",
+        "description": "Give a permission to a role",
+        "operationId": "givePermissionToRole",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles/revoke-permission": {
+      "post": {
+        "tags": ["roles"],
+        "summary": "Revoke permission from role",
+        "description": "Revoke a permission from a role",
+        "operationId": "revokePermissionFromRole",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/roles/{id}/permissions": {
+      "get": {
+        "tags": ["roles"],
+        "summary": "Get role permissions",
+        "description": "Get all permissions for a role",
+        "operationId": "getRolePermissions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["roles"],
+        "summary": "Sync role permissions",
+        "description": "Synchronize permissions for a role",
+        "operationId": "syncRolePermissions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/permissions/list": {
+      "get": {
+        "tags": ["permissions"],
+        "summary": "Get list of permissions",
+        "description": "Get list of all permissions",
+        "operationId": "getPermissionList",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/permissions/{id}": {
+      "get": {
+        "tags": ["permissions"],
+        "summary": "Get permission detail",
+        "description": "Get detailed information of a specific permission",
+        "operationId": "getPermission",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["permissions"],
+        "summary": "Update permission",
+        "description": "Update permission information",
+        "operationId": "updatePermission",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["permissions"],
+        "summary": "Delete permission",
+        "description": "Delete a permission",
+        "operationId": "deletePermission",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {"type": "integer", "format": "int64"}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/permissions": {
+      "post": {
+        "tags": ["permissions"],
+        "summary": "Create permission",
+        "description": "Create a new permission",
+        "operationId": "createPermission",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/constants": {
+      "get": {
+        "tags": ["constants"],
+        "summary": "Get all constants",
+        "description": "Get all system constants",
+        "operationId": "getConstants",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/constants/account-levels": {
+      "get": {
+        "tags": ["constants"],
+        "summary": "Get account levels",
+        "description": "Get account level constants",
+        "operationId": "getAccountLevels",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/constants/account-types": {
+      "get": {
+        "tags": ["constants"],
+        "summary": "Get account types",
+        "description": "Get account type constants",
+        "operationId": "getAccountTypes",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/constants/providers": {
+      "get": {
+        "tags": ["constants"],
+        "summary": "Get providers",
+        "description": "Get provider constants",
+        "operationId": "getProviders",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/constants/providers-types": {
+      "get": {
+        "tags": ["constants"],
+        "summary": "Get provider types",
+        "description": "Get provider type constants",
+        "operationId": "getProviderTypes",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swagger/": {
+      "get": {
+        "tags": ["swagger"],
+        "summary": "Swagger UI",
+        "description": "Swagger UI documentation page",
+        "operationId": "getSwaggerUI",
+        "responses": {
+          "200": {
+            "description": "Swagger UI HTML page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swagger/redoc": {
+      "get": {
+        "tags": ["swagger"],
+        "summary": "ReDoc UI",
+        "description": "ReDoc documentation page",
+        "operationId": "getReDocUI",
+        "responses": {
+          "200": {
+            "description": "ReDoc UI HTML page",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/swagger/swagger.json": {
+      "get": {
+        "tags": ["swagger"],
+        "summary": "Get Swagger JSON",
+        "description": "Get OpenAPI specification in JSON format",
+        "operationId": "getSwaggerJSON",
+        "responses": {
+          "200": {
+            "description": "Swagger JSON",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Health check",
+        "description": "Check if the API is running",
+        "operationId": "healthCheck",
+        "responses": {
+          "200": {
+            "description": "API is running",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "example": "success"
+                        },
+                        "message": {
+                          "type": "string",
+                          "example": "Core ledger API is running"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CoaAccountRulesResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoaAccountRuleTypeResp"
+            }
+          },
+          "error": {
+            "nullable": true,
+            "$ref": "#/components/schemas/ResponseError"
+          }
+        }
+      },
+      "CoaAccountRuleTypeResp": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "example": "ASSET"
+          },
+          "name": {
+            "type": "string",
+            "example": "Asset"
+          },
+          "separator": {
+            "type": "string",
+            "example": ":"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoaAccountRuleGroupResp"
+            }
+          }
+        }
+      },
+      "CoaAccountRuleGroupResp": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "code": {
+            "type": "string",
+            "example": "FLOAT"
+          },
+          "name": {
+            "type": "string",
+            "example": "Float"
+          },
+          "input_type": {
+            "type": "string",
+            "enum": ["SELECT", "TEXT"],
+            "example": "SELECT"
+          },
+          "separator": {
+            "type": "string",
+            "example": ":"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoaAccountRuleStepResp"
+            }
+          }
+        }
+      },
+      "CoaAccountRuleStepResp": {
+        "type": "object",
+        "properties": {
+          "step_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "step_order": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["SELECT", "TEXT"],
+            "example": "SELECT"
+          },
+          "label": {
+            "type": "string",
+            "example": "Details"
+          },
+          "category_code": {
+            "type": "string",
+            "nullable": true,
+            "example": "CURRENCY"
+          },
+          "values": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/RuleValueResp"
+            }
+          },
+          "input_code": {
+            "type": "string",
+            "nullable": true,
+            "example": "DETAILS"
+          },
+          "input_type": {
+            "type": "string",
+            "nullable": true,
+            "example": "TEXT"
+          },
+          "separator": {
+            "type": "string",
+            "example": "."
+          }
+        }
+      },
+      "RuleValueResp": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string",
+            "example": "VND"
+          },
+          "value": {
+            "type": "string",
+            "example": "VND"
+          }
+        }
+      },
+      "RequestCoaAccountCreateRequest": {
+        "type": "object",
+        "required": ["request_type", "account_data"],
+        "properties": {
+          "request_type": {
+            "type": "string",
+            "enum": ["CREATE"],
+            "example": "CREATE"
+          },
+          "account_data": {
+            "$ref": "#/components/schemas/CoaAccountDataCreate"
+          }
+        }
+      },
+      "RequestCoaAccountEditRequest": {
+        "type": "object",
+        "required": ["request_type", "account_data"],
+        "properties": {
+          "request_type": {
+            "type": "string",
+            "enum": ["EDIT"],
+            "example": "EDIT"
+          },
+          "account_data": {
+            "$ref": "#/components/schemas/CoaAccountDataEdit"
+          }
+        }
+      },
+      "RequestCoaAccountUpdateRequest": {
+        "type": "object",
+        "required": ["account_data"],
+        "properties": {
+          "account_data": {
+            "$ref": "#/components/schemas/CoaAccountDataEdit"
+          }
+        }
+      },
+      "CoaAccountDataCreate": {
+        "type": "object",
+        "required": ["code", "account_no", "name", "type", "currency", "status"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "ASSET"
+          },
+          "account_no": {
+            "type": "string",
+            "example": "ASSET:VND.Cobo.Details"
+          },
+          "name": {
+            "type": "string",
+            "example": "Asset Account"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["ASSET", "LIAB", "EQUITY", "REV", "EXP"],
+            "example": "ASSET"
+          },
+          "currency": {
+            "type": "string",
+            "example": "VND"
+          },
+          "status": {
+            "type": "string",
+            "example": "ACTIVE"
+          },
+          "parent_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "provider": {
+            "type": "string",
+            "nullable": true,
+            "example": "Cobo"
+          },
+          "network": {
+            "type": "string",
+            "nullable": true,
+            "example": "ETH"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Account description"
+          }
+        }
+      },
+      "CoaAccountDataEdit": {
+        "type": "object",
+        "required": ["account_id", "account_no", "name", "status"],
+        "properties": {
+          "account_id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "account_no": {
+            "type": "string",
+            "example": "ASSET:VND.Cobo.NewDetails"
+          },
+          "name": {
+            "type": "string",
+            "example": "Updated Account Name"
+          },
+          "status": {
+            "type": "string",
+            "example": "ACTIVE"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Updated description"
+          }
+        }
+      },
+      "RequestCoaAccountApproveRequest": {
+        "type": "object",
+        "properties": {
+          "comment": {
+            "type": "string",
+            "nullable": true,
+            "example": "Approved by admin"
+          }
+        }
+      },
+      "RequestCoaAccountRejectRequest": {
+        "type": "object",
+        "required": ["reject_reason"],
+        "properties": {
+          "reject_reason": {
+            "type": "string",
+            "example": "Invalid account number format"
+          }
+        }
+      },
+      "RequestCoaAccountListResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/PaginationResponse"
+          },
+          "error": {
+            "nullable": true,
+            "$ref": "#/components/schemas/ResponseError"
+          }
+        }
+      },
+      "PaginationResponse": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RequestCoaAccountResponse"
+            }
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "limit": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "total_page": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "next_page": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "prev_page": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "total_pending_request": {
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "RequestCoaAccountResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "coa_account_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "request_type": {
+            "type": "string",
+            "enum": ["CREATE", "EDIT"],
+            "example": "CREATE"
+          },
+          "request_status": {
+            "type": "string",
+            "enum": ["PENDING", "APPROVED", "REJECTED"],
+            "example": "PENDING"
+          },
+          "maker_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "checker_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true
+          },
+          "data": {
+            "type": "object"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "reject_reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "code_analysis": {
+            "$ref": "#/components/schemas/CodeAnalysis",
+            "nullable": true
+          }
+        }
+      },
+      "RequestCoaAccountDetailResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/RequestCoaAccountResponse"
+          },
+          "error": {
+            "nullable": true,
+            "$ref": "#/components/schemas/ResponseError"
+          }
+        }
+      },
+      "CodeAnalysis": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "type_code": {
+            "type": "string"
+          },
+          "type_name": {
+            "type": "string"
+          },
+          "group_code": {
+            "type": "string"
+          },
+          "group_name": {
+            "type": "string"
+          },
+          "form_data": {
+            "type": "object",
+            "nullable": true
+          },
+          "is_valid": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "boolean",
+            "example": true
+          },
+          "code": {
+            "type": "integer",
+            "example": 200
+          },
+          "message": {
+            "type": "string",
+            "example": "Success"
+          },
+          "data": {
+            "type": "string",
+            "example": "Tạo request thành công. Đang chờ phê duyệt."
+          },
+          "system": {
+            "$ref": "#/components/schemas/System"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "nullable": true
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResponseError"
+          }
+        }
+      },
+      "ResponseError": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "example": "Error message"
+          },
+          "property": {
+            "type": "string",
+            "nullable": true,
+            "example": "account_no"
+          }
+        }
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "nullable": true
+          },
+          "error": {
+            "$ref": "#/components/schemas/ResponseError"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "DuplicateResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "is_duplicate": {
+                "type": "boolean",
+                "example": true
+              },
+              "message": {
+                "type": "string",
+                "example": "Account No. ASSET:VND.Cobo.Details đã tồn tại trong Core"
+              },
+              "duplicate_in": {
+                "type": "string",
+                "enum": ["core", "request"],
+                "example": "core"
+              }
+            }
+          }
+        }
+      },
+      "System": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Core Ledger"
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["production", "staging", "development"]
+          },
+          "version": {
+            "$ref": "#/components/schemas/Version"
+          },
+          "timezone": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Version": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "integer",
+            "example": 2
+          },
+          "name": {
+            "type": "string",
+            "example": "v2.0.0"
+          },
+          "path": {
+            "type": "string",
+            "example": "/v2"
+          }
+        }
+      },
+      "PreResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object"
+          },
+          "error": {
+            "nullable": true,
+            "$ref": "#/components/schemas/ResponseError"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "password123"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["full_name", "email", "password"],
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "account_type": {
+            "type": "string",
+            "example": "INDIVIDUAL"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "password123"
+          },
+          "phone_number": {
+            "type": "string",
+            "example": "+84123456789"
+          },
+          "referral_code": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token authentication"
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ]
+}
+
