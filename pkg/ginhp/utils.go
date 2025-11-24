@@ -70,7 +70,7 @@ func RespondOK(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, Response{
 		Status:  true,
 		Code:    http.StatusOK,
-		Message: "success",
+		Message: "Success",
 		Data:    data,
 		System: System{
 			Name: os.Getenv("APP_NAME"),

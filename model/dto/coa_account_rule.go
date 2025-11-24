@@ -32,3 +32,4 @@ type CoaAccountRuleStepResp struct {
 	Separator   string              `json:"separator"`
 }
 
+

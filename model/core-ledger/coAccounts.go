@@ -10,20 +10,21 @@ import (
 
 type CoaAccount struct {
 	Entity
-	ID        uint64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
-	Code      string          `gorm:"type:varchar(128);not null;uniqueIndex:uniq_code_currency" json:"code"`
-	AccountNo string          `gorm:"type:varchar(64);uniqueIndex" json:"account_no"`
-	Name      string          `gorm:"type:varchar(256);not null" json:"name"`
-	Type      string          `gorm:"type:varchar(16);not null;check:type IN ('ASSET','LIAB','EQUITY','REV','EXP')" json:"type"`
-	Currency  string          `gorm:"type:char(8);not null;uniqueIndex:uniq_code_currency" json:"currency"`
-	ParentID  *uint64         `gorm:"column:parent_id" json:"parent_id,omitempty"`
-	Status    string          `gorm:"type:varchar(16);default:'ACTIVE'" json:"status"`
-	Provider  *string         `gorm:"type:varchar(64)" json:"provider,omitempty"`
-	Network   *string         `gorm:"type:varchar(32)" json:"network,omitempty"`
-	Tags      map[string]any  `gorm:"type:jsonb" json:"tags,omitempty"`
-	Metadata  *datatypes.JSON `gorm:"type:jsonb" json:"metadata,omitempty"`
-	CreatedAt time.Time       `gorm:"column:created_at;autoCreateTime" json:"created_at"`
-	UpdatedAt time.Time       `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	ID          uint64          `gorm:"primaryKey;autoIncrement;column:id" json:"id"`
+	Code        string          `gorm:"type:varchar(128);not null;uniqueIndex:uniq_code_currency" json:"code"`
+	AccountNo   string          `gorm:"type:varchar(64);uniqueIndex" json:"account_no"`
+	Name        string          `gorm:"type:varchar(256);not null" json:"name"`
+	Type        string          `gorm:"type:varchar(16);not null;check:type IN ('ASSET','LIAB','EQUITY','REV','EXP')" json:"type"`
+	Currency    string          `gorm:"type:char(8);not null;uniqueIndex:uniq_code_currency" json:"currency"`
+	ParentID    *uint64         `gorm:"column:parent_id" json:"parent_id,omitempty"`
+	Status      string          `gorm:"type:varchar(16);default:'ACTIVE'" json:"status"`
+	Provider    *string         `gorm:"type:varchar(64)" json:"provider,omitempty"`
+	Network     *string         `gorm:"type:varchar(32)" json:"network,omitempty"`
+	Tags        map[string]any  `gorm:"type:jsonb" json:"tags,omitempty"`
+	Metadata    *datatypes.JSON `gorm:"type:jsonb" json:"metadata,omitempty"`
+	CreatedAt   time.Time       `gorm:"column:created_at;autoCreateTime" json:"created_at"`
+	UpdatedAt   time.Time       `gorm:"column:updated_at;autoUpdateTime" json:"updated_at"`
+	Description *string         `gorm:"type:varchar(512)" json:"description,omitempty"`
 
 	// Quan hệ
 	Parent   *CoaAccount  `gorm:"foreignKey:ParentID" json:"parent,omitempty"`

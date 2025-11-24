@@ -86,6 +86,7 @@ type CoaAccountDataCreate struct {
 // CoaAccountDataEdit represents the account data for EDIT request with validation
 type CoaAccountDataEdit struct {
 	// Fields for EDIT (allowed to change)
+	Name        string  `json:"name" binding:"required"`
 	AccountId   uint64  `json:"account_id" binding:"required"` // Required for EDIT
 	AccountNo   string  `json:"account_no" binding:"required"` // Required for EDIT
 	Status      string  `json:"status" binding:"required"`     // Required for EDIT
@@ -105,15 +106,15 @@ type ListRequestCoaAccountFilter struct {
 
 // CodeAnalysis phân tích code từ rules - format để frontend tự generate form
 type CodeAnalysis struct {
-	Code      string                    `json:"code"`
-	TypeCode  string                    `json:"type_code"`
-	TypeName  string                    `json:"type_name,omitempty"`
-	GroupCode string                    `json:"group_code"`
-	GroupName string                    `json:"group_name,omitempty"`
+	Code      string `json:"code"`
+	TypeCode  string `json:"type_code"`
+	TypeName  string `json:"type_name,omitempty"`
+	GroupCode string `json:"group_code"`
+	GroupName string `json:"group_name,omitempty"`
 	// Rules structure với giá trị đã chọn - frontend có thể dùng để render form
-	FormData  *CodeFormData             `json:"form_data,omitempty"`
-	IsValid   bool                      `json:"is_valid"`
-	Error     string                    `json:"error,omitempty"`
+	FormData *CodeFormData `json:"form_data,omitempty"`
+	IsValid  bool          `json:"is_valid"`
+	Error    string        `json:"error,omitempty"`
 }
 
 // CodeFormData cấu trúc form data để frontend render
@@ -125,37 +126,38 @@ type CodeFormData struct {
 
 // CodeFormType type với group đã chọn
 type CodeFormType struct {
-	ID        uint64         `json:"id"`
-	Code      string         `json:"code"`
-	Name      string         `json:"name"`
-	Separator string         `json:"separator"`
-	Group     CodeFormGroup  `json:"group"` // Group đã được chọn
+	ID        uint64        `json:"id"`
+	Code      string        `json:"code"`
+	Name      string        `json:"name"`
+	Separator string        `json:"separator"`
+	Group     CodeFormGroup `json:"group"` // Group đã được chọn
 }
 
 // CodeFormGroup group với giá trị đã chọn
 type CodeFormGroup struct {
-	ID        uint64         `json:"id"`
-	Code      string         `json:"code"`
-	Name      string         `json:"name"`
-	InputType string         `json:"input_type"`
-	Separator string         `json:"separator"`
-	Selected  bool           `json:"selected"` // Đánh dấu group này đã được chọn
-	Steps     []CodeFormStep `json:"steps"`
+	ID           uint64         `json:"id"`
+	Code         string         `json:"code"`
+	Name         string         `json:"name"`
+	InputType    string         `json:"input_type"`
+	Separator    string         `json:"separator"`
+	Selected     bool           `json:"selected"`                // Đánh dấu group này đã được chọn
+	CurrentValue string         `json:"current_value,omitempty"` // Giá trị text input của group (nếu input_type là TEXT)
+	Steps        []CodeFormStep `json:"steps"`
 }
 
 // CodeFormStep step với giá trị đã chọn và options
 type CodeFormStep struct {
-	StepID      uint64              `json:"step_id"`
-	StepOrder   int                 `json:"step_order"`
-	Type        string              `json:"type"` // SELECT hoặc TEXT
-	Label       string              `json:"label,omitempty"`
-	CategoryCode string             `json:"category_code,omitempty"`
-	InputCode   string              `json:"input_code,omitempty"`
-	InputType   string              `json:"input_type,omitempty"`
-	Separator   string              `json:"separator"`
-	Values      []RuleValueResp     `json:"values,omitempty"` // Options cho SELECT
-	CurrentValue string             `json:"current_value,omitempty"` // Giá trị hiện tại đã chọn
-	CurrentValueName string         `json:"current_value_name,omitempty"` // Tên của giá trị hiện tại
+	StepID           uint64          `json:"step_id"`
+	StepOrder        int             `json:"step_order"`
+	Type             string          `json:"type"` // SELECT hoặc TEXT
+	Label            string          `json:"label,omitempty"`
+	CategoryCode     string          `json:"category_code,omitempty"`
+	InputCode        string          `json:"input_code,omitempty"`
+	InputType        string          `json:"input_type,omitempty"`
+	Separator        string          `json:"separator"`
+	Values           []RuleValueResp `json:"values,omitempty"`             // Options cho SELECT
+	CurrentValue     string          `json:"current_value,omitempty"`      // Giá trị hiện tại đã chọn
+	CurrentValueName string          `json:"current_value_name,omitempty"` // Tên của giá trị hiện tại
 }
 
 // RequestCoaAccountResponse response DTO
@@ -234,28 +236,29 @@ func (r *RequestCoaAccountCreateRequest) ToModel(makerID uint64) (*model.Request
 // ToModel converts DTO to model for CREATE request with validation
 func (r *RequestCoaAccountCreateRequestWithValidation) ToModel(makerID uint64) (*model.RequestCoaAccount, error) {
 	account := &model.CoaAccount{
-		Code:      r.AccountData.Code,
-		AccountNo: r.AccountData.AccountNo,
-		Name:      r.AccountData.Name,
-		Type:      r.AccountData.Type,
-		Currency:  r.AccountData.Currency,
-		Status:    r.AccountData.Status,
-		ParentID:  r.AccountData.ParentID,
-		Provider:  r.AccountData.Provider,
-		Network:   r.AccountData.Network,
+		Code:        r.AccountData.Code,
+		AccountNo:   r.AccountData.AccountNo,
+		Name:        r.AccountData.Name,
+		Type:        r.AccountData.Type,
+		Currency:    r.AccountData.Currency,
+		Status:      r.AccountData.Status,
+		ParentID:    r.AccountData.ParentID,
+		Provider:    r.AccountData.Provider,
+		Network:     r.AccountData.Network,
+		Description: r.AccountData.Description,
 	}
 
 	// Handle Description (store in metadata)
-	if r.AccountData.Description != nil {
-		metadata := map[string]interface{}{
-			"description": *r.AccountData.Description,
-		}
-		metadataJSON, err := json.Marshal(metadata)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal description: %w", err)
-		}
-		account.Metadata = (*datatypes.JSON)(&metadataJSON)
-	}
+	// if r.AccountData.Description != nil {
+	// 	metadata := map[string]interface{}{
+	// 		"description": *r.AccountData.Description,
+	// 	}
+	// 	metadataJSON, err := json.Marshal(metadata)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to marshal description: %w", err)
+	// 	}
+	// 	account.Metadata = (*datatypes.JSON)(&metadataJSON)
+	// }
 
 	request, err := model.NewCreateRequest(account, makerID)
 	if err != nil {
@@ -268,22 +271,24 @@ func (r *RequestCoaAccountCreateRequestWithValidation) ToModel(makerID uint64) (
 // ToModel converts DTO to model for EDIT request with validation
 func (r *RequestCoaAccountEditRequestWithValidation) ToModel(makerID uint64) (*model.RequestCoaAccount, error) {
 	account := &model.CoaAccount{
-		ID:        r.AccountData.AccountId,
-		AccountNo: r.AccountData.AccountNo,
-		Status:    r.AccountData.Status,
+		ID:          r.AccountData.AccountId,
+		Name:        r.AccountData.Name,
+		Description: r.AccountData.Description,
+		AccountNo:   r.AccountData.AccountNo,
+		Status:      r.AccountData.Status,
 	}
 
 	// Handle Description (store in metadata)
-	if r.AccountData.Description != nil {
-		metadata := map[string]interface{}{
-			"description": *r.AccountData.Description,
-		}
-		metadataJSON, err := json.Marshal(metadata)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal description: %w", err)
-		}
-		account.Metadata = (*datatypes.JSON)(&metadataJSON)
-	}
+	// if r.AccountData.Description != nil {
+	// 	metadata := map[string]interface{}{
+	// 		"description": *r.AccountData.Description,
+	// 	}
+	// 	metadataJSON, err := json.Marshal(metadata)
+	// 	if err != nil {
+	// 		return nil, fmt.Errorf("failed to marshal description: %w", err)
+	// 	}
+	// 	account.Metadata = (*datatypes.JSON)(&metadataJSON)
+	// }
 
 	request, err := model.NewEditRequest(account, makerID)
 	if err != nil {

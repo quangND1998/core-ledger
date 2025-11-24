@@ -166,7 +166,7 @@ func (s *RequestCoaAccountService) GetList(ctx context.Context, filter *dto.List
 		pp := page - 1
 		prevPage = &pp
 	}
-
+	
 	return &dto.PaginationResponse[*dto.RequestCoaAccountResponse]{
 		Items:     items,
 		Total:     total,
@@ -271,7 +271,7 @@ func (s *RequestCoaAccountService) parseCode(ctx context.Context, code string) (
 
 	// Trường hợp 1: Type có groups (ASSET, LIAB, etc.)
 	if len(matchedType.Groups) > 0 {
-		// Tìm group trong code
+		// Tìm group trong code (có group code prefix)
 		for i := range matchedType.Groups {
 			group := matchedType.Groups[i]
 			if group.Separator != "" && strings.HasPrefix(remainingCode, group.Code+group.Separator) {
@@ -282,27 +282,36 @@ func (s *RequestCoaAccountService) parseCode(ctx context.Context, code string) (
 			}
 		}
 
-		// Trường hợp 2: Không tìm thấy group trong code nhưng type có group "KIND" (REV, EXP)
-		// Đây là group ảo cho type có steps trực tiếp, có thể không có group code trong string
-		if matchedGroup == nil {
+		// Trường hợp 2: Không tìm thấy group code trong string
+		// Có thể là: REV/EXP với group KIND, hoặc LIAB với group DETAILS (không có group code trong string)
+		if matchedGroup == nil && remainingCode != "" {
 			for i := range matchedType.Groups {
 				group := matchedType.Groups[i]
-				// Nếu là group KIND (group ảo cho REV/EXP) và còn code để parse
-				if group.Code == "KIND" && remainingCode != "" {
-					// Kiểm tra xem có group code prefix không
+				
+				// Nếu là group KIND (REV/EXP) - có thể có hoặc không có group code prefix
+				if group.Code == "KIND" {
 					if group.Separator != "" && strings.HasPrefix(remainingCode, group.Code+group.Separator) {
-						// Có group code prefix
+						// Có group code prefix: "KIND:..."
 						groupCode = group.Code
 						groupSeparator = group.Separator
 						matchedGroup = &matchedType.Groups[i]
 						break
 					} else if len(group.Steps) > 0 {
-						// Không có group code prefix, parse trực tiếp với steps
+						// Không có group code prefix, parse trực tiếp: "REV:SERVICE_FEE.USD"
 						groupCode = group.Code
-						groupSeparator = "" // Không có separator vì không có group code trong string
+						groupSeparator = ""
 						matchedGroup = &matchedType.Groups[i]
 						break
 					}
+				}
+				
+				// Nếu type chỉ có 1 group duy nhất và không tìm thấy group code trong string
+				// Ví dụ: LIAB với group DETAILS (input_type TEXT) - "LIAB:123123:USD"
+				if len(matchedType.Groups) == 1 && len(group.Steps) > 0 {
+					groupCode = group.Code
+					groupSeparator = "" // Không có group code trong string
+					matchedGroup = &matchedType.Groups[i]
+					break
 				}
 			}
 		}
@@ -325,9 +334,47 @@ func (s *RequestCoaAccountService) parseCode(ctx context.Context, code string) (
 		remainingCode = strings.TrimPrefix(remainingCode, groupCode+groupSeparator)
 	}
 
+	// Parse group text input (nếu group có input_type TEXT)
+	groupTextValue := ""
+	currentCode := remainingCode
+
+	// Nếu group có input_type TEXT, parse text input của group trước
+	if matchedGroup.InputType == "TEXT" && matchedGroup.Separator != "" {
+		// Tách text input của group theo group separator
+		if strings.Contains(currentCode, matchedGroup.Separator) {
+			parts := strings.SplitN(currentCode, matchedGroup.Separator, 2)
+			groupTextValue = parts[0]
+			if len(parts) > 1 {
+				currentCode = parts[1]
+			} else {
+				currentCode = ""
+			}
+		} else {
+			// Nếu không có separator, toàn bộ là text input của group
+			// Nhưng cần kiểm tra xem có steps không
+			if len(matchedGroup.Steps) > 0 {
+				// Có steps, cần parse tiếp
+				// Text input của group là phần trước step đầu tiên
+				firstStep := matchedGroup.Steps[0]
+				if firstStep.Separator != "" && strings.Contains(currentCode, firstStep.Separator) {
+					parts := strings.SplitN(currentCode, firstStep.Separator, 2)
+					groupTextValue = parts[0]
+					currentCode = parts[1]
+				} else {
+					// Không có separator của step, toàn bộ là text input
+					groupTextValue = currentCode
+					currentCode = ""
+				}
+			} else {
+				// Không có steps, toàn bộ là text input
+				groupTextValue = currentCode
+				currentCode = ""
+			}
+		}
+	}
+
 	// Parse các steps và lưu giá trị đã chọn
 	stepValues := make(map[int]string) // step_order -> value
-	currentCode := remainingCode
 
 	// Tách các step theo separator của từng step
 	for _, step := range matchedGroup.Steps {
@@ -391,12 +438,13 @@ func (s *RequestCoaAccountService) parseCode(ctx context.Context, code string) (
 
 	// Build selected group với đầy đủ steps và current values
 	selectedGroup := dto.CodeFormGroup{
-		ID:        matchedGroup.ID,
-		Code:      matchedGroup.Code,
-		Name:      matchedGroup.Name,
-		InputType: matchedGroup.InputType,
-		Separator: matchedGroup.Separator,
-		Steps:     formSteps, // Steps với current values đã được parse
+		ID:           matchedGroup.ID,
+		Code:         matchedGroup.Code,
+		Name:         matchedGroup.Name,
+		InputType:    matchedGroup.InputType,
+		Separator:    matchedGroup.Separator,
+		CurrentValue: groupTextValue, // Text input của group (nếu input_type là TEXT)
+		Steps:        formSteps,      // Steps với current values đã được parse
 	}
 
 	// Build type với group đã chọn

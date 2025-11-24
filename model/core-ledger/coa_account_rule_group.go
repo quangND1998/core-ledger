@@ -31,3 +31,4 @@ func (CoaAccountRuleGroup) TableName() string {
 	return "coa_account_rule_groups"
 }
 
+

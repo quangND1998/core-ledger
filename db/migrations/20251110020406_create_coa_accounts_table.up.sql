@@ -7,6 +7,7 @@ BEGIN
             id BIGSERIAL PRIMARY KEY,
             code VARCHAR(128) NOT NULL,
             name VARCHAR(256) NOT NULL,
+            description TEXT NULL,
             type VARCHAR(16) NOT NULL CHECK (type IN ('ASSET','LIAB','EQUITY','REV','EXP')),
             currency CHAR(8) NOT NULL,
             account_no VARCHAR(64) NOT NULL UNIQUE,

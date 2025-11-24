@@ -28,3 +28,4 @@ func (CoaAccountRuleType) TableName() string {
 	return "coa_account_rule_types"
 }
 
+

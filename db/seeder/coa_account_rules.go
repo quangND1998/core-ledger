@@ -1,10 +1,10 @@
 package seeder
 
 import (
+	model "core-ledger/model/core-ledger"
 	"errors"
 	"fmt"
 	"strings"
-	model "core-ledger/model/core-ledger"
 
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -44,8 +44,10 @@ func SeederCoaAccountRules(db *gorm.DB) error {
 		{"ASSET", "CUSTODY", "Custody", ":", "SELECT", 3},
 		{"ASSET", "CLEARING", "Clearing", ":", "SELECT", 4},
 		// LIAB groups
-		{"LIAB", "DETAILS", "Details", ":", "SELECT", 1},
-		// REV và EXP không có group - steps thuộc trực tiếp về type
+		{"LIAB", "DETAILS", "Details", ":", "TEXT", 1},
+		// REV và EXP groups
+		{"REV", "KIND", "Kind", ":", "SELECT", 1},
+		{"EXP", "KIND", "Kind", ":", "SELECT", 1},
 	}
 
 	groupMap := make(map[string]uint64)
@@ -115,18 +117,18 @@ func SeederCoaAccountRules(db *gorm.DB) error {
 		return err
 	}
 
-	// REV steps (không có group, steps thuộc trực tiếp về type - bỏ qua KIND)
-	if err := seedStepsForType(db, typeMap["REV"], nil, []stepSeed{
+	// REV:KIND steps
+	if err := seedStepsForGroup(db, typeMap["REV"], groupMap["REV:KIND"], []stepSeed{
 		{CategoryCode: "KINDS_OF_REVENUE", Separator: ".", StepOrder: 1},
-		{CategoryCode: "CURRENCY", Separator: ".", StepOrder: 2},
+		{CategoryCode: "CURRENCY", Separator: "", StepOrder: 2},
 	}, categoryMap); err != nil {
 		return err
 	}
 
-	// EXP steps (không có group, steps thuộc trực tiếp về type - bỏ qua KIND)
-	if err := seedStepsForType(db, typeMap["EXP"], nil, []stepSeed{
+	// EXP:KIND steps
+	if err := seedStepsForGroup(db, typeMap["EXP"], groupMap["EXP:KIND"], []stepSeed{
 		{CategoryCode: "KINDS_OF_EXPENSE", Separator: ".", StepOrder: 1},
-		{CategoryCode: "CURRENCY", Separator: ".", StepOrder: 2},
+		{CategoryCode: "CURRENCY", Separator: "", StepOrder: 2},
 	}, categoryMap); err != nil {
 		return err
 	}
@@ -283,4 +285,3 @@ func buildRuleCategoryMap(db *gorm.DB) (map[string]uint64, error) {
 	}
 	return result, nil
 }
-

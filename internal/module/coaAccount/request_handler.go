@@ -11,28 +11,28 @@ import (
 	"core-ledger/pkg/repo"
 	"core-ledger/pkg/utils"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type RequestCoaAccountHandler struct {
-	logger        logger.CustomLogger
-	service       *RequestCoaAccountService
-	coAccountRepo repo.CoAccountRepo
-	db            *gorm.DB
+	logger            logger.CustomLogger
+	service           *RequestCoaAccountService
+	coAccountRepo     repo.CoAccountRepo
+	reqCoaAccountRepo repo.ReqCoaAccountRepo
+	db                *gorm.DB
 }
 
-func NewRequestCoaAccountHandler(service *RequestCoaAccountService, db *gorm.DB, coAccountRepo repo.CoAccountRepo) *RequestCoaAccountHandler {
+func NewRequestCoaAccountHandler(service *RequestCoaAccountService, db *gorm.DB, coAccountRepo repo.CoAccountRepo, reqCoaAccountRepo repo.ReqCoaAccountRepo) *RequestCoaAccountHandler {
 	return &RequestCoaAccountHandler{
-		logger:        logger.NewSystemLog("RequestCoaAccountHandler"),
-		service:       service,
-		coAccountRepo: coAccountRepo,
-		db:            db,
+		logger:            logger.NewSystemLog("RequestCoaAccountHandler"),
+		service:           service,
+		coAccountRepo:     coAccountRepo,
+		reqCoaAccountRepo: reqCoaAccountRepo,
+		db:                db,
 	}
 }
 
@@ -45,12 +45,15 @@ func (h *RequestCoaAccountHandler) GetList(c *gin.Context) {
 	}
 
 	res, err := h.service.GetList(c, &filter)
+	total_pending_request, err := h.reqCoaAccountRepo.CountByFields(c, map[string]interface{}{
+		"request_status": model.RequestStatusPending,
+	})
 	if err != nil {
 		h.logger.Error("Failed to get request list", err)
 		ginhp.RespondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-
+	res.TotalPendingRequest = total_pending_request
 	c.JSON(http.StatusOK, dto.PreResponse{
 		Data: res,
 	})
@@ -166,16 +169,41 @@ func (h *RequestCoaAccountHandler) Create(c *gin.Context) {
 			ginhp.RespondErrorValidate(c, http.StatusUnprocessableEntity, "Invalid input", out)
 			return
 		}
-		fmt.Println("AccountId", req.AccountData.AccountId)
+
 		accountNo = req.AccountData.AccountNo
-		_, err := h.coAccountRepo.GetOneByFields(c, map[string]interface{}{
+
+		// Kiểm tra account có tồn tại không và lấy account hiện tại
+		existingAccount, err := h.coAccountRepo.GetOneByFields(c, map[string]interface{}{
 			"id": req.AccountData.AccountId,
 		})
 		if err != nil {
-			fmt.Println("AccountId", req.AccountData.AccountId)
 			ginhp.ReturnBadRequestError(c, err)
 			return
 		}
+
+		// Chỉ check duplicate nếu account_no thay đổi (khác với account_no hiện tại)
+		if existingAccount.AccountNo != accountNo {
+			// Check duplicate (loại trừ account hiện tại đang được edit)
+
+			duplicateInfo, err := h.service.CheckDuplicate(c, accountNo, model.RequestTypeEdit)
+			if err != nil {
+				h.logger.Error("Failed to check duplicate", err)
+				ginhp.RespondError(c, http.StatusInternalServerError, "Có lỗi xảy ra khi kiểm tra trùng lặp")
+				return
+			}
+
+			if duplicateInfo.IsDuplicate {
+				c.JSON(http.StatusBadRequest, dto.PreResponse{
+					Data: map[string]interface{}{
+						"is_duplicate": true,
+						"message":      duplicateInfo.Message,
+						"duplicate_in": duplicateInfo.DuplicateIn,
+					},
+				})
+				return
+			}
+		}
+		// Nếu account_no không thay đổi (giữ nguyên), không cần check duplicate
 
 		// Convert to model
 		request, err = req.ToModel(uint64(userID))
@@ -268,29 +296,30 @@ func (h *RequestCoaAccountHandler) Update(c *gin.Context) {
 
 		// Convert to model và update
 		account := &model.CoaAccount{
-			Code:      req.AccountData.Code,
-			AccountNo: req.AccountData.AccountNo,
-			Name:      req.AccountData.Name,
-			Type:      req.AccountData.Type,
-			Currency:  req.AccountData.Currency,
-			Status:    req.AccountData.Status,
-			ParentID:  req.AccountData.ParentID,
-			Provider:  req.AccountData.Provider,
-			Network:   req.AccountData.Network,
+			Code:        req.AccountData.Code,
+			AccountNo:   req.AccountData.AccountNo,
+			Name:        req.AccountData.Name,
+			Type:        req.AccountData.Type,
+			Currency:    req.AccountData.Currency,
+			Status:      req.AccountData.Status,
+			ParentID:    req.AccountData.ParentID,
+			Provider:    req.AccountData.Provider,
+			Network:     req.AccountData.Network,
+			Description: req.AccountData.Description,
 		}
 
 		// Handle Description (store in metadata)
-		if req.AccountData.Description != nil {
-			metadata := map[string]interface{}{
-				"description": *req.AccountData.Description,
-			}
-			metadataJSON, err := json.Marshal(metadata)
-			if err != nil {
-				ginhp.RespondError(c, http.StatusBadRequest, "Failed to marshal description")
-				return
-			}
-			account.Metadata = (*datatypes.JSON)(&metadataJSON)
-		}
+		// if req.AccountData.Description != nil {
+		// 	metadata := map[string]interface{}{
+		// 		"description": *req.AccountData.Description,
+		// 	}
+		// 	metadataJSON, err := json.Marshal(metadata)
+		// 	if err != nil {
+		// 		ginhp.RespondError(c, http.StatusBadRequest, "Failed to marshal description")
+		// 		return
+		// 	}
+		// 	account.Metadata = (*datatypes.JSON)(&metadataJSON)
+		// }
 
 		if err := request.SetAccountData(account); err != nil {
 			ginhp.RespondError(c, http.StatusBadRequest, err.Error())
@@ -313,17 +342,17 @@ func (h *RequestCoaAccountHandler) Update(c *gin.Context) {
 		}
 
 		// Handle Description (store in metadata)
-		if req.AccountData.Description != nil {
-			metadata := map[string]interface{}{
-				"description": *req.AccountData.Description,
-			}
-			metadataJSON, err := json.Marshal(metadata)
-			if err != nil {
-				ginhp.RespondError(c, http.StatusBadRequest, "Failed to marshal description")
-				return
-			}
-			account.Metadata = (*datatypes.JSON)(&metadataJSON)
-		}
+		// if req.AccountData.Description != nil {
+		// 	metadata := map[string]interface{}{
+		// 		"description": *req.AccountData.Description,
+		// 	}
+		// 	metadataJSON, err := json.Marshal(metadata)
+		// 	if err != nil {
+		// 		ginhp.RespondError(c, http.StatusBadRequest, "Failed to marshal description")
+		// 		return
+		// 	}
+		// 	account.Metadata = (*datatypes.JSON)(&metadataJSON)
+		// }
 
 		if err := request.SetAccountData(account); err != nil {
 			ginhp.RespondError(c, http.StatusBadRequest, err.Error())

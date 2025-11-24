@@ -32,3 +32,4 @@ type CoaAccountDataWithRules struct {
 	RuleInput *CoaAccountRuleInput `json:"rule_input,omitempty"`
 }
 
+
