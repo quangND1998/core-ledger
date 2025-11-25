@@ -22,8 +22,8 @@ const (
 	CoaAccountExportKeyType       CoaAccountExportKey = "type"
 	CoaAccountExportKeyParentCode CoaAccountExportKey = "parent_code"
 	CoaAccountExportKeyStatus     CoaAccountExportKey = "status"
-
-	CoaAccountExportKeyProvider CoaAccountExportKey = "provider"
+	CoaAccountExportKeyCurrency   CoaAccountExportKey = "currency"
+	CoaAccountExportKeyProvider   CoaAccountExportKey = "provider"
 
 	CoaAccountExportKeyNetwork  CoaAccountExportKey = "network"
 	CoaAccountExportKeyTags     CoaAccountExportKey = "tags"
@@ -45,6 +45,7 @@ var TransactionExportHeaders = map[CoaAccountExportKey]string{
 	"parent_code": "parent_code",
 	"status":      "status",
 	"provider":    "provider",
+	"currency":    "currency",
 	"network":     "network",
 	"tags":        "tags",
 	"metadata":    "metadata",

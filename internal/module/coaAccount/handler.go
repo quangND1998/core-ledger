@@ -112,10 +112,10 @@ func (h *CoaAccountHandler) ExportCoaAccounts(c *gin.Context) {
 		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	h.logger.Info("transactionFilter", filter)
+	h.logger.Info("transactionFilter", &filter)
 
 	// --- Fetch data ---
-	data, err := h.coAccountRepo.Paginate(filter)
+	data, err := h.coAccountRepo.PaginateWithScopes(c, filter)
 	if err != nil {
 		ginhp.RespondError(c, http.StatusBadRequest, err.Error())
 		return
@@ -159,6 +159,8 @@ func (h *CoaAccountHandler) ExportCoaAccounts(c *gin.Context) {
 				value = tran.Parent.Code
 			case CoaAccountExportKeyStatus:
 				value = tran.Status
+			case CoaAccountExportKeyCurrency:
+				value = tran.Currency
 			case CoaAccountExportKeyProvider:
 				if tran.Provider != nil {
 					value = *tran.Provider
