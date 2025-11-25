@@ -11,7 +11,7 @@ func registerAPIRoutes(r *gin.RouterGroup, h *CoaAccountHandler, middleware ...g
 		tx.GET("/list", h.List)
 		// tx.GET("/list", user.UserAnyPermissionMiddleware([]string{"coa.view"}, "web"), h.List)
 		tx.GET("/:id", h.GetCoaAccountDetail)
-		tx.GET("export", h.ExportCoaAccounts)
+		tx.POST("export", h.ExportCoaAccounts)
 		// Add more routes here
 		tx.POST("", h.Create)
 		tx.POST("/:account_no/exist", h.ExistAccoutnNo)

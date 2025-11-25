@@ -29,3 +29,4 @@ func (CoaAccountRuleType) TableName() string {
 }
 
 
+

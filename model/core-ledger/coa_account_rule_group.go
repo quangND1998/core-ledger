@@ -32,3 +32,4 @@ func (CoaAccountRuleGroup) TableName() string {
 }
 
 
+

@@ -43,3 +43,4 @@ http://localhost:8000/api/v1/swagger/swagger.json
 - Swagger UI sử dụng CDN từ unpkg.com, cần có kết nối internet
 - File swagger.json được embed vào binary khi build, không cần file riêng khi deploy
 
+

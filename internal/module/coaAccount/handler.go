@@ -160,9 +160,17 @@ func (h *CoaAccountHandler) ExportCoaAccounts(c *gin.Context) {
 			case CoaAccountExportKeyStatus:
 				value = tran.Status
 			case CoaAccountExportKeyProvider:
-				value = tran.Provider
+				if tran.Provider != nil {
+					value = *tran.Provider
+				} else {
+					value = ""
+				}
 			case CoaAccountExportKeyNetwork:
-				value = tran.Network
+				if tran.Network != nil {
+					value = *tran.Network
+				} else {
+					value = ""
+				}
 			case CoaAccountExportKeyTags:
 				value = helper.FormatJSONForExcel(tran.Tags)
 			case CoaAccountExportKeyMetadata:
